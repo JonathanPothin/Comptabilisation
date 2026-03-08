@@ -568,3 +568,134 @@ details summary::-webkit-details-marker {
     padding: 14px 12px 30px;
   }
 }
+
+.team-grid-candidates {
+  background: transparent;
+  padding: 0;
+  border: 0;
+  gap: 12px;
+}
+
+.team-candidate-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: left;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid var(--line);
+  min-height: 72px;
+}
+
+.team-candidate-btn.active {
+  background: #ffffff;
+  border: 2px solid var(--blue);
+  color: var(--text);
+}
+
+.team-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  display: block;
+}
+
+.team-avatar-fallback {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+}
+
+.team-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.team-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111111;
+  line-height: 1.2;
+}
+
+.team-sub {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.score-name-wrap,
+.rank-name-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.score-avatar,
+.rank-avatar,
+.bar-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.score-avatar-fallback,
+.rank-avatar-fallback,
+.bar-avatar-fallback {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.bar-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.team-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.table-team-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 640px) {
+  .team-candidate-btn {
+    min-height: 66px;
+  }
+
+  .team-avatar,
+  .team-avatar-fallback {
+    width: 38px;
+    height: 38px;
+  }
+
+  .team-name {
+    font-size: 14px;
+  }
+}
