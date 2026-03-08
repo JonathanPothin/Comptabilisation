@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="UTF-8">
+<title>Résultats Top100</title>
+
+<link rel="stylesheet" href="style.css">
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase.js"></script>
+
+</head>
+
+<body>
+
+<h1>Résultats Top 100</h1>
+
+<div id="resultats"></div>
+
+<script>
+
+async function load(){
+
+let {data} = await supabase
+.from("passages")
+.select("*")
+.eq("phase","top100");
+
+let score = {1:0,2:0,3:0};
+
+data.forEach(p=>{
+score[p.equipe]++;
+});
+
+document.getElementById("resultats").innerHTML = `
+Equipe 1 : ${score[1]}<br>
+Equipe 2 : ${score[2]}<br>
+Equipe 3 : ${score[3]}
+`;
+
+}
+
+load();
+
+</script>
+
+</body>
+</html>
