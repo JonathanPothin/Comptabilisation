@@ -39,7 +39,7 @@ async function envoyer() {
 
   setMessage("Enregistrement en cours...");
 
-  const { error } = await supabaseClient.from("passages").insert([
+  const { error } = await window.supabaseClient.from("passages").insert([
     {
       bureau,
       equipe,
