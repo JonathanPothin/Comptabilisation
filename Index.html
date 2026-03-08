@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Checkpoint Course Tassin</title>
+
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+<script src="supabase.js"></script>
+<script src="app.js" defer></script>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+
+<body>
+
+<h1>Checkpoint</h1>
+
+<select id="checkpoint">
+<option value="BV1">BV1</option>
+<option value="BV2">BV2</option>
+<option value="BV3">BV3</option>
+<option value="BV4">BV4</option>
+<option value="BV5">BV5</option>
+<option value="BV6">BV6</option>
+<option value="BV7">BV7</option>
+<option value="BV8">BV8</option>
+<option value="BV9">BV9</option>
+<option value="BV10">BV10</option>
+<option value="BV11">BV11</option>
+<option value="BV12">BV12</option>
+<option value="BV13">BV13</option>
+<option value="BV14">BV14</option>
+<option value="BV15">BV15</option>
+</select>
+
+<h2>Equipe</h2>
+
+<button onclick="setEquipe(1)">Equipe 1</button>
+<button onclick="setEquipe(2)">Equipe 2</button>
+<button onclick="setEquipe(3)">Equipe 3</button>
+
+<h2>Rang</h2>
+
+<input id="rang" type="number">
+
+<h2>Phase</h2>
+
+<select id="phase">
+<option value="top100">Top 100</option>
+<option value="journee">Journée</option>
+</select>
+
+<button onclick="envoyer()">Enregistrer</button>
+
+<br><br>
+
+<a href="results.html">Résultat Top100</a>
+<br>
+<a href="results_day.html">Résultat Journée</a>
+
+</body>
+</html>
