@@ -5,19 +5,23 @@
   <title>Comptabilisation Course Tassin</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <link rel="manifest" href="manifest.json">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase.js?v=2"></script>
-  <script src="app.js?v=2" defer></script>
+  <script src="supabase.js?v=3"></script>
+  <script src="app.js?v=3" defer></script>
 </head>
 <body>
-  <div class="container">
-    <h1>Comptabilisation</h1>
-    <p class="subtitle">Saisie des passages par bureau</p>
+  <div class="app">
+    <header class="hero">
+      <h1>Comptabilisation</h1>
+      <p>Course sportive – bureaux de vote</p>
+    </header>
 
-    <div class="card">
+    <section class="panel">
+      <h2>Saisie</h2>
+
       <label for="bureau">Bureau</label>
       <select id="bureau">
         <option value="Bureau 1">Bureau 1</option>
@@ -45,7 +49,7 @@
       </div>
 
       <label for="rang">Rang / nombre</label>
-      <input id="rang" type="number" min="1" placeholder="Ex : 12">
+      <input id="rang" type="number" min="1" placeholder="Ex : 20">
 
       <label for="phase">Phase</label>
       <select id="phase">
@@ -54,12 +58,42 @@
       </select>
 
       <button class="save-btn" type="button" onclick="envoyer()">Enregistrer</button>
-    </div>
+      <button class="refresh-btn" type="button" onclick="chargerDonnees()">Actualiser les résultats</button>
 
-    <div class="links">
-      <a href="results.html">Résultats 100 premiers</a>
-      <a href="results_day.html">Résultats journée</a>
-    </div>
+      <p id="message" class="message"></p>
+    </section>
+
+    <section class="grid-stats">
+      <div class="panel stat-card">
+        <h2>100 premiers</h2>
+        <div id="top100-cards" class="score-cards"></div>
+      </div>
+
+      <div class="panel stat-card">
+        <h2>Toute la journée</h2>
+        <div id="journee-cards" class="score-cards"></div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Infographie 100 premiers</h2>
+      <div id="top100-bars"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Infographie journée</h2>
+      <div id="journee-bars"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Par bureau – 100 premiers</h2>
+      <div id="table-top100"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Par bureau – journée</h2>
+      <div id="table-journee"></div>
+    </section>
   </div>
 
   <script>
