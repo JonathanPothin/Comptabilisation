@@ -242,7 +242,7 @@ function renderHeroStats() {
 function renderScoreCards(scores) {
   const target = document.getElementById("score-cards");
   target.innerHTML = `
-    <div class="score-card"><span class="score-name">Yohann HACHANI/span><span class="score-value">${scores[1]}</span></div>
+    <div class="score-card"><span class="score-name">Yohann HACHANI</span><span class="score-value">${scores[1]}</span></div>
     <div class="score-card"><span class="score-name">Pascal CHARMOT</span><span class="score-value">${scores[2]}</span></div>
     <div class="score-card"><span class="score-name">Julien RANC</span><span class="score-value">${scores[3]}</span></div>
   `;
@@ -251,9 +251,9 @@ function renderScoreCards(scores) {
 function renderRanking(scores) {
   const target = document.getElementById("classement-principal");
   const ranking = [
-    { equipe: 1, score: scores[1] || 0 },
-    { equipe: 2, score: scores[2] || 0 },
-    { equipe: 3, score: scores[3] || 0 }
+    { Yohann HACHANI, score: scores[1] || 0 },
+    { Pascal CHARMOT, score: scores[2] || 0 },
+    { Julien RANC, score: scores[3] || 0 }
   ].sort((a, b) => b.score - a.score);
 
   const first = ranking[0];
