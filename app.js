@@ -242,9 +242,9 @@ function renderHeroStats() {
 function renderScoreCards(scores) {
   const target = document.getElementById("score-cards");
   target.innerHTML = `
-    <div class="score-card"><span class="score-name">Équipe 1</span><span class="score-value">${scores[1]}</span></div>
-    <div class="score-card"><span class="score-name">Équipe 2</span><span class="score-value">${scores[2]}</span></div>
-    <div class="score-card"><span class="score-name">Équipe 3</span><span class="score-value">${scores[3]}</span></div>
+    <div class="score-card"><span class="score-name">Yohann HACHANI/span><span class="score-value">${scores[1]}</span></div>
+    <div class="score-card"><span class="score-name">Pascal CHARMOT</span><span class="score-value">${scores[2]}</span></div>
+    <div class="score-card"><span class="score-name">Julien RANC</span><span class="score-value">${scores[3]}</span></div>
   `;
 }
 
@@ -290,9 +290,9 @@ function renderBars(scores) {
   }
 
   target.innerHTML = `
-    ${row("Équipe 1", scores[1])}
-    ${row("Équipe 2", scores[2])}
-    ${row("Équipe 3", scores[3])}
+    ${row("Yohann HACHANI", scores[1])}
+    ${row("Pascal CHARMOT", scores[2])}
+    ${row("Julien RANC", scores[3])}
   `;
 }
 
@@ -344,9 +344,9 @@ function renderTable(data, mode) {
         <thead>
           <tr>
             <th>Bureau</th>
-            <th>Équipe 1</th>
-            <th>Équipe 2</th>
-            <th>Équipe 3</th>
+            <th>Yohann HACHANI</th>
+            <th>Pascal CHARMOT</th>
+            <th>Julien RANC</th>
             <th>Total</th>
             <th>État</th>
           </tr>
@@ -517,19 +517,19 @@ async function copierResume() {
     `Résumé - ${filtre === "TOUS" ? "Tous les bureaux" : filtre}`,
     ``,
     `100 premiers`,
-    `Équipe 1 : ${top100Scores[1]}`,
-    `Équipe 2 : ${top100Scores[2]}`,
-    `Équipe 3 : ${top100Scores[3]}`,
+    `Yohann HACHANI : ${top100Scores[1]}`,
+    `Pascal CHARMOT : ${top100Scores[2]}`,
+    `Julien RANC : ${top100Scores[3]}`,
     ``,
     `Après les 100`,
-    `Équipe 1 : ${apres100Scores[1]}`,
-    `Équipe 2 : ${apres100Scores[2]}`,
-    `Équipe 3 : ${apres100Scores[3]}`,
+    `Yohann HACHANI : ${apres100Scores[1]}`,
+    `Pascal CHARMOT : ${apres100Scores[2]}`,
+    `Julien RANC : ${apres100Scores[3]}`,
     ``,
     `Total journée`,
-    `Équipe 1 : ${journeeScores[1]}`,
-    `Équipe 2 : ${journeeScores[2]}`,
-    `Équipe 3 : ${journeeScores[3]}`
+    `Yohann HACHANI : ${journeeScores[1]}`,
+    `Pascal CHARMOT : ${journeeScores[2]}`,
+    `Julien RANC : ${journeeScores[3]}`
   ].join("\n");
 
   try {
