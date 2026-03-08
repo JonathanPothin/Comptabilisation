@@ -1,16 +1,104 @@
-body{
-font-family: Arial;
-padding:20px;
-text-align:center;
+* {
+  box-sizing: border-box;
 }
 
-button{
-padding:15px;
-margin:10px;
-font-size:18px;
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #f4f7fb;
+  color: #1f2937;
 }
 
-input,select{
-padding:10px;
-font-size:16px;
+.container {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 20px 14px 40px;
+}
+
+h1 {
+  margin: 10px 0 4px;
+  font-size: 28px;
+  text-align: center;
+}
+
+.subtitle {
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 20px;
+}
+
+.card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+select,
+input {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  font-size: 16px;
+  background: #fff;
+}
+
+.team-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+
+.team-btn {
+  border: none;
+  border-radius: 12px;
+  padding: 14px 10px;
+  font-size: 16px;
+  font-weight: 700;
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.team-btn.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+.save-btn {
+  width: 100%;
+  margin-top: 20px;
+  padding: 16px;
+  border: none;
+  border-radius: 14px;
+  background: #16a34a;
+  color: white;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.links {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.links a {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+  background: white;
+  color: #1d4ed8;
+  padding: 14px;
+  border-radius: 14px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
 }
