@@ -248,7 +248,7 @@ async function chargerDonnees() {
   toutesLesDonnees = data || [];
 
   const top100 = toutesLesDonnees.filter((row) => row.phase === "top100");
-  const journee = toutesLesDonnees.filter((row) => row.phase === "journee");
+  const journee = [...toutesLesDonnees];
 
   const top100Scores = aggregateByTeam(top100);
   const journeeScores = aggregateByTeam(journee);
