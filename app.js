@@ -1,27 +1,59 @@
 let equipe = null;
 let toutesLesDonnees = [];
+let currentView = "top100";
+let realtimeChannel = null;
+let lastStatsSnapshot = {
+  bureauxComplets: "",
+  top100: 0,
+  journee: 0
+};
+
+function showToast(text, isError = false) {
+  const toast = document.getElementById("toast");
+  toast.textContent = text;
+  toast.style.background = isError
+    ? "rgba(185, 28, 28, 0.94)"
+    : "rgba(28, 28, 30, 0.92)";
+  toast.classList.add("show");
+
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(() => {
+    toast.classList.remove("show");
+  }, 2200);
+}
 
 function setEquipe(e) {
   equipe = e;
-
-  document.querySelectorAll(".team-btn").forEach((btn) => {
+  document.querySelectorAll(".team-grid .segment-btn").forEach((btn) => {
     btn.classList.remove("active");
   });
-
   const btn = document.getElementById("team-" + e);
   if (btn) btn.classList.add("active");
 }
 
-function ajouterValeur(valeur) {
-  const input = document.getElementById("rang");
-  const actuel = parseInt(input.value || "0", 10);
-  input.value = actuel + valeur;
+function setViewMode(mode) {
+  currentView = mode;
+  document.querySelectorAll(".view-segment .segment-btn").forEach((btn) => {
+    btn.classList.remove("active");
+  });
+  const active = document.getElementById("view-" + mode);
+  if (active) active.classList.add("active");
+  renderAll();
 }
 
-function setMessage(text, isError = false) {
-  const el = document.getElementById("message");
-  el.textContent = text;
-  el.style.color = isError ? "#dc2626" : "#2563eb";
+function ajouterValeur(valeur) {
+  const input = document.getElementById("rang");
+  const current = parseInt(input.value || "0", 10);
+  input.value = current + valeur;
+}
+
+function formatLastUpdate(source = "live") {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  const prefix = source === "manual" ? "Actualisé à" : "Live à";
+  document.getElementById("last-update").textContent = `${prefix} ${hh}:${mm}:${ss}`;
 }
 
 function filtreBureauActuel() {
@@ -46,7 +78,7 @@ function updateTop100Info() {
   const info = document.getElementById("top100-info");
 
   if (phase !== "top100") {
-    info.innerHTML = "Mode ajouts après les 100 : les quantités s'ajoutent au total journée.";
+    info.textContent = "Mode après les 100 : ces quantités s’ajoutent au total journée.";
     return;
   }
 
@@ -54,9 +86,9 @@ function updateTop100Info() {
   const reste = 100 - total;
 
   if (reste <= 0) {
-    info.innerHTML = `${bureau} : les 100 premiers sont déjà complets (100 / 100).`;
+    info.textContent = `${bureau} : les 100 premiers sont complets (100 / 100).`;
   } else {
-    info.innerHTML = `${bureau} : ${total} / 100 saisis — il reste ${reste} personne(s).`;
+    info.textContent = `${bureau} : ${total} / 100 saisis — il reste ${reste} personne(s).`;
   }
 }
 
@@ -66,17 +98,17 @@ async function envoyer() {
   const phase = document.getElementById("phase").value;
 
   if (!bureau) {
-    setMessage("Choisis un bureau.", true);
+    showToast("Choisis un bureau.", true);
     return;
   }
 
   if (!equipe) {
-    setMessage("Choisis une équipe.", true);
+    showToast("Choisis une équipe.", true);
     return;
   }
 
   if (!nombre || nombre < 1) {
-    setMessage("Entre un nombre valide.", true);
+    showToast("Entre un nombre valide.", true);
     return;
   }
 
@@ -84,39 +116,32 @@ async function envoyer() {
     const totalActuel = getTop100TotalForBureau(bureau);
 
     if (totalActuel >= 100) {
-      setMessage(`${bureau} a déjà atteint 100 / 100.`, true);
+      showToast(`${bureau} a déjà atteint 100 / 100.`, true);
       updateTop100Info();
       return;
     }
 
     if (totalActuel + nombre > 100) {
       const reste = 100 - totalActuel;
-      setMessage(`Impossible : ${bureau} a déjà ${totalActuel}/100. Tu peux ajouter au maximum ${reste}.`, true);
+      showToast(`Impossible : tu peux ajouter au maximum ${reste}.`, true);
       updateTop100Info();
       return;
     }
   }
 
-  setMessage("Enregistrement en cours...");
-
   const { error } = await window.supabaseClient.from("passages").insert([
-    {
-      bureau: bureau,
-      equipe: equipe,
-      rang: nombre,
-      phase: phase
-    }
+    { bureau, equipe, rang: nombre, phase }
   ]);
 
   if (error) {
     console.error(error);
-    setMessage("Erreur lors de l'enregistrement.", true);
+    showToast("Erreur lors de l’enregistrement.", true);
     return;
   }
 
-  setMessage("Enregistré avec succès.");
   document.getElementById("rang").value = "";
-  await chargerDonnees();
+  showToast("Enregistré");
+  // Pas besoin de reload manuel : Realtime prendra le relais
 }
 
 function aggregateByTeam(data) {
@@ -143,46 +168,88 @@ function aggregateByBureau(data) {
   return bureaux;
 }
 
-function buildScoreCards(targetId, scores) {
-  const target = document.getElementById(targetId);
+function getDatasets() {
+  const dataFiltrees = appliquerFiltre(toutesLesDonnees);
+  const top100 = dataFiltrees.filter((row) => row.phase === "top100");
+  const apres100 = dataFiltrees.filter((row) => row.phase === "journee");
+  const journee = [...top100, ...apres100];
+  return { top100, apres100, journee };
+}
+
+function getCurrentDataset() {
+  const { top100, apres100, journee } = getDatasets();
+
+  if (currentView === "top100") {
+    return { key: "top100", data: top100, scores: aggregateByTeam(top100) };
+  }
+
+  if (currentView === "apres100") {
+    return { key: "apres100", data: apres100, scores: aggregateByTeam(apres100) };
+  }
+
+  return { key: "journee", data: journee, scores: aggregateByTeam(journee) };
+}
+
+function animateNumber(el, newValue, suffix = "") {
+  const oldValue = parseInt((el.dataset.value || "0"), 10);
+  if (oldValue === newValue) {
+    el.textContent = `${newValue}${suffix}`;
+    return;
+  }
+
+  const duration = 350;
+  const start = performance.now();
+
+  function step(now) {
+    const progress = Math.min((now - start) / duration, 1);
+    const current = Math.round(oldValue + (newValue - oldValue) * progress);
+    el.textContent = `${current}${suffix}`;
+    if (progress < 1) {
+      requestAnimationFrame(step);
+    } else {
+      el.dataset.value = String(newValue);
+    }
+  }
+
+  requestAnimationFrame(step);
+}
+
+function renderHeroStats() {
+  const top100Data = toutesLesDonnees.filter((row) => row.phase === "top100");
+  const journeeData = [...toutesLesDonnees];
+
+  const top100Total = top100Data.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
+  const journeeTotal = journeeData.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
+
+  const top100Bureaux = aggregateByBureau(top100Data);
+  const nbComplets = Object.values(top100Bureaux).filter((b) => b.total >= 100).length;
+
+  const bureauxText = `${nbComplets} / 15`;
+
+  const bureauxEl = document.getElementById("stat-bureaux");
+  const top100El = document.getElementById("stat-top100");
+  const journeeEl = document.getElementById("stat-journee");
+
+  if (lastStatsSnapshot.bureauxComplets !== bureauxText) {
+    bureauxEl.textContent = bureauxText;
+    lastStatsSnapshot.bureauxComplets = bureauxText;
+  }
+
+  animateNumber(top100El, top100Total);
+  animateNumber(journeeEl, journeeTotal);
+}
+
+function renderScoreCards(scores) {
+  const target = document.getElementById("score-cards");
   target.innerHTML = `
-    <div class="score-card"><span class="name">Équipe 1</span><span class="value">${scores[1]}</span></div>
-    <div class="score-card"><span class="name">Équipe 2</span><span class="value">${scores[2]}</span></div>
-    <div class="score-card"><span class="name">Équipe 3</span><span class="value">${scores[3]}</span></div>
+    <div class="score-card"><span class="score-name">Équipe 1</span><span class="score-value">${scores[1]}</span></div>
+    <div class="score-card"><span class="score-name">Équipe 2</span><span class="score-value">${scores[2]}</span></div>
+    <div class="score-card"><span class="score-name">Équipe 3</span><span class="score-value">${scores[3]}</span></div>
   `;
 }
 
-function buildBarRow(label, value, max) {
-  const width = Math.round((value / max) * 100);
-  return `
-    <div class="bar-row">
-      <div class="bar-label">
-        <span>${label}</span>
-        <span>${value}</span>
-      </div>
-      <div class="bar-track">
-        <div class="bar-fill" style="width:${width}%"></div>
-      </div>
-    </div>
-  `;
-}
-
-function buildBars(targetId, scores) {
-  const target = document.getElementById(targetId);
-  const max = Math.max(scores[1], scores[2], scores[3], 1);
-
-  target.innerHTML = `
-    <div class="bar-group">
-      ${buildBarRow("Équipe 1", scores[1], max)}
-      ${buildBarRow("Équipe 2", scores[2], max)}
-      ${buildBarRow("Équipe 3", scores[3], max)}
-    </div>
-  `;
-}
-
-function buildClassement(targetId, scores) {
-  const target = document.getElementById(targetId);
-
+function renderRanking(scores) {
+  const target = document.getElementById("classement-principal");
   const ranking = [
     { equipe: 1, score: scores[1] || 0 },
     { equipe: 2, score: scores[2] || 0 },
@@ -192,32 +259,45 @@ function buildClassement(targetId, scores) {
   const first = ranking[0];
   const second = ranking[1];
   const third = ranking[2];
-  const ecart = first.score - second.score;
+  const ecart = Math.max(0, first.score - second.score);
 
   target.innerHTML = `
-    <div class="classement">
-      <div class="rank-card">
-        <div class="rank-title">1er : Équipe ${first.equipe}</div>
-        <div class="rank-sub">${first.score} personne(s)</div>
-      </div>
-      <div class="rank-card">
-        <div class="rank-title">2e : Équipe ${second.equipe}</div>
-        <div class="rank-sub">${second.score} personne(s)</div>
-      </div>
-      <div class="rank-card">
-        <div class="rank-title">3e : Équipe ${third.equipe}</div>
-        <div class="rank-sub">${third.score} personne(s)</div>
-      </div>
-      <div class="rank-card">
-        <div class="rank-title">Écart</div>
-        <div class="rank-sub">Équipe ${first.equipe} a ${ecart} personne(s) d'avance sur l'équipe ${second.equipe}</div>
-      </div>
+    <div class="rank-card">
+      <div class="rank-top"><div class="rank-title">1er : Équipe ${first.equipe}</div><div class="rank-score">${first.score}</div></div>
+    </div>
+    <div class="rank-card">
+      <div class="rank-top"><div class="rank-title">2e : Équipe ${second.equipe}</div><div class="rank-score">${second.score}</div></div>
+    </div>
+    <div class="rank-card">
+      <div class="rank-top"><div class="rank-title">3e : Équipe ${third.equipe}</div><div class="rank-score">${third.score}</div></div>
+      <div class="rank-sub">Équipe ${first.equipe} a ${ecart} personne(s) d’avance sur l’équipe ${second.equipe}</div>
     </div>
   `;
 }
 
-function buildTable(targetId, data, mode) {
-  const target = document.getElementById(targetId);
+function renderBars(scores) {
+  const target = document.getElementById("main-bars");
+  const max = Math.max(scores[1], scores[2], scores[3], 1);
+
+  function row(label, value) {
+    const width = Math.round((value / max) * 100);
+    return `
+      <div class="bar-row">
+        <div class="bar-head"><span>${label}</span><span>${value}</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+      </div>
+    `;
+  }
+
+  target.innerHTML = `
+    ${row("Équipe 1", scores[1])}
+    ${row("Équipe 2", scores[2])}
+    ${row("Équipe 3", scores[3])}
+  `;
+}
+
+function renderTable(data, mode) {
+  const target = document.getElementById("table-main");
   const bureaux = aggregateByBureau(data);
   const noms = Object.keys(bureaux).sort((a, b) => {
     const na = parseInt(a.replace(/\D/g, ""), 10);
@@ -225,26 +305,25 @@ function buildTable(targetId, data, mode) {
     return na - nb;
   });
 
-  if (noms.length === 0) {
-    target.innerHTML = "<p>Aucune donnée.</p>";
+  if (!noms.length) {
+    target.innerHTML = "<p class='muted'>Aucune donnée.</p>";
     return;
   }
 
   let rows = "";
+
   noms.forEach((bureau) => {
     const item = bureaux[bureau];
+    let statusHtml = `<span class="status-pill">—</span>`;
     let totalText = `${item.total}`;
-    let status = "";
 
     if (mode === "top100") {
       totalText = `${item.total} / 100`;
       if (item.total >= 100) {
-        status = `<span class="status-cell status-ok">Complet</span>`;
+        statusHtml = `<span class="status-pill status-ok">Complet</span>`;
       } else {
-        status = `<span class="status-cell status-wait">Reste ${100 - item.total}</span>`;
+        statusHtml = `<span class="status-pill status-wait">Reste ${100 - item.total}</span>`;
       }
-    } else {
-      status = `<span class="status-cell">—</span>`;
     }
 
     rows += `
@@ -254,7 +333,7 @@ function buildTable(targetId, data, mode) {
         <td>${item[2]}</td>
         <td>${item[3]}</td>
         <td class="total-cell">${totalText}</td>
-        <td>${status}</td>
+        <td>${statusHtml}</td>
       </tr>
     `;
   });
@@ -278,12 +357,12 @@ function buildTable(targetId, data, mode) {
   `;
 }
 
-function buildHistorique(data) {
+function renderHistorique() {
   const target = document.getElementById("historique");
-  const recent = [...data].sort((a, b) => b.id - a.id).slice(0, 10);
+  const recent = [...toutesLesDonnees].sort((a, b) => b.id - a.id).slice(0, 10);
 
-  if (recent.length === 0) {
-    target.innerHTML = "<p>Aucune saisie pour le moment.</p>";
+  if (!recent.length) {
+    target.innerHTML = "<p class='muted'>Aucune saisie pour le moment.</p>";
     return;
   }
 
@@ -291,44 +370,75 @@ function buildHistorique(data) {
     <div class="history-list">
       ${recent.map((row) => `
         <div class="history-item">
-          <div class="history-line">${row.bureau} — Équipe ${row.equipe} — ${row.rang} — ${row.phase === "top100" ? "100 premiers" : "ajouts après les 100"}</div>
-          <div class="history-meta">ID ${row.id}</div>
+          <div class="history-line">${row.bureau} — Équipe ${row.equipe} — ${row.rang}</div>
+          <div class="history-meta">${row.phase === "top100" ? "100 premiers" : "Après les 100"} · ID ${row.id}</div>
         </div>
       `).join("")}
     </div>
   `;
 }
 
-function buildOrganizerSummary(top100Data, apres100Data, journeeData) {
-  const top100Total = top100Data.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
-  const apres100Total = apres100Data.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
-  const journeeTotal = journeeData.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
+function renderAll() {
+  renderHeroStats();
+  const current = getCurrentDataset();
+  renderScoreCards(current.scores);
+  renderRanking(current.scores);
+  renderBars(current.scores);
+  renderTable(current.data, current.key);
+  renderHistorique();
+  updateTop100Info();
+}
 
-  const top100Bureaux = aggregateByBureau(top100Data);
-  const nbComplets = Object.values(top100Bureaux).filter((b) => b.total >= 100).length;
+async function chargerDonnees(showManualToast = false, source = "manual") {
+  const { data, error } = await window.supabaseClient
+    .from("passages")
+    .select("*")
+    .order("created_at", { ascending: true });
 
-  document.getElementById("organizer-summary").innerHTML = `
-    <div class="organizer-box">
-      <div class="label">Bureaux complets (100 premiers)</div>
-      <div class="value">${nbComplets} / 15</div>
-    </div>
-    <div class="organizer-box">
-      <div class="label">Total 100 premiers</div>
-      <div class="value">${top100Total}</div>
-    </div>
-    <div class="organizer-box">
-      <div class="label">Ajouts après les 100</div>
-      <div class="value">${apres100Total}</div>
-    </div>
-    <div class="organizer-box">
-      <div class="label">Total journée</div>
-      <div class="value">${journeeTotal}</div>
-    </div>
-  `;
+  if (error) {
+    console.error(error);
+    showToast("Impossible de charger les résultats.", true);
+    return;
+  }
+
+  toutesLesDonnees = data || [];
+  renderAll();
+  formatLastUpdate(source);
+
+  if (showManualToast) {
+    showToast("Résultats actualisés");
+  }
+}
+
+function setupRealtime() {
+  if (realtimeChannel) {
+    window.supabaseClient.removeChannel(realtimeChannel);
+  }
+
+  realtimeChannel = window.supabaseClient
+    .channel("passages-live")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "passages"
+      },
+      async () => {
+        await chargerDonnees(false, "live");
+      }
+    )
+    .subscribe((status) => {
+      console.log("Realtime status:", status);
+      if (status === "SUBSCRIBED") {
+        showToast("Temps réel activé");
+      }
+    });
 }
 
 async function annulerDerniereSaisie() {
-  if (!confirm("Annuler la dernière saisie ?")) return;
+  const ok = confirm("Annuler la dernière saisie ?");
+  if (!ok) return;
 
   const { data, error } = await window.supabaseClient
     .from("passages")
@@ -338,12 +448,12 @@ async function annulerDerniereSaisie() {
 
   if (error) {
     console.error(error);
-    setMessage("Impossible de récupérer la dernière saisie.", true);
+    showToast("Impossible de récupérer la dernière saisie.", true);
     return;
   }
 
-  if (!data || data.length === 0) {
-    setMessage("Aucune saisie à annuler.", true);
+  if (!data || !data.length) {
+    showToast("Aucune saisie à annuler.", true);
     return;
   }
 
@@ -356,12 +466,11 @@ async function annulerDerniereSaisie() {
 
   if (deleteError) {
     console.error(deleteError);
-    setMessage("Impossible d'annuler. Vérifie la policy DELETE.", true);
+    showToast("Suppression impossible. Vérifie la policy DELETE.", true);
     return;
   }
 
-  setMessage(`Dernière saisie annulée (ID ${lastId}).`);
-  await chargerDonnees();
+  showToast(`Dernière saisie annulée (ID ${lastId})`);
 }
 
 function toCsvLine(values) {
@@ -370,7 +479,7 @@ function toCsvLine(values) {
 
 function exporterCSV() {
   if (!toutesLesDonnees.length) {
-    setMessage("Aucune donnée à exporter.", true);
+    showToast("Aucune donnée à exporter.", true);
     return;
   }
 
@@ -389,11 +498,10 @@ function exporterCSV() {
   a.click();
 
   URL.revokeObjectURL(url);
-  setMessage("Export CSV généré.");
+  showToast("Export CSV généré");
 }
 
 async function copierResume() {
-  const filtre = filtreBureauActuel();
   const dataFiltrees = appliquerFiltre(toutesLesDonnees);
   const top100 = dataFiltrees.filter((row) => row.phase === "top100");
   const apres100 = dataFiltrees.filter((row) => row.phase === "journee");
@@ -403,101 +511,41 @@ async function copierResume() {
   const apres100Scores = aggregateByTeam(apres100);
   const journeeScores = aggregateByTeam(journee);
 
-  const ranking = [
-    { equipe: 1, score: journeeScores[1] || 0 },
-    { equipe: 2, score: journeeScores[2] || 0 },
-    { equipe: 3, score: journeeScores[3] || 0 }
-  ].sort((a, b) => b.score - a.score);
+  const filtre = filtreBureauActuel();
 
   const texte = [
-    `Résumé comptabilisation - ${filtre === "TOUS" ? "Tous les bureaux" : filtre}`,
+    `Résumé - ${filtre === "TOUS" ? "Tous les bureaux" : filtre}`,
     ``,
-    `100 premiers :`,
+    `100 premiers`,
     `Équipe 1 : ${top100Scores[1]}`,
     `Équipe 2 : ${top100Scores[2]}`,
     `Équipe 3 : ${top100Scores[3]}`,
     ``,
-    `Ajouts après les 100 :`,
+    `Après les 100`,
     `Équipe 1 : ${apres100Scores[1]}`,
     `Équipe 2 : ${apres100Scores[2]}`,
     `Équipe 3 : ${apres100Scores[3]}`,
     ``,
-    `Total journée :`,
+    `Total journée`,
     `Équipe 1 : ${journeeScores[1]}`,
     `Équipe 2 : ${journeeScores[2]}`,
-    `Équipe 3 : ${journeeScores[3]}`,
-    ``,
-    `Classement journée :`,
-    `1er : Équipe ${ranking[0].equipe} (${ranking[0].score})`,
-    `2e : Équipe ${ranking[1].equipe} (${ranking[1].score})`,
-    `3e : Équipe ${ranking[2].equipe} (${ranking[2].score})`
+    `Équipe 3 : ${journeeScores[3]}`
   ].join("\n");
 
   try {
     await navigator.clipboard.writeText(texte);
-    setMessage("Résumé copié dans le presse-papiers.");
+    showToast("Résumé copié");
   } catch (e) {
     console.error(e);
-    setMessage("Impossible de copier automatiquement.", true);
+    showToast("Impossible de copier automatiquement.", true);
   }
 }
 
-async function chargerDonnees() {
-  setMessage("Chargement des résultats...");
-
-  const { data, error } = await window.supabaseClient
-    .from("passages")
-    .select("*")
-    .order("created_at", { ascending: true });
-
-  if (error) {
-    console.error(error);
-    setMessage("Impossible de charger les résultats.", true);
-    return;
-  }
-
-  toutesLesDonnees = data || [];
-
-  const dataFiltrees = appliquerFiltre(toutesLesDonnees);
-
-  const top100 = dataFiltrees.filter((row) => row.phase === "top100");
-  const apres100 = dataFiltrees.filter((row) => row.phase === "journee");
-  const journee = [...top100, ...apres100];
-
-  const top100Scores = aggregateByTeam(top100);
-  const apres100Scores = aggregateByTeam(apres100);
-  const journeeScores = aggregateByTeam(journee);
-
-  buildOrganizerSummary(
-    toutesLesDonnees.filter((row) => row.phase === "top100"),
-    toutesLesDonnees.filter((row) => row.phase === "journee"),
-    [...toutesLesDonnees]
-  );
-
-  buildScoreCards("top100-cards", top100Scores);
-  buildScoreCards("apres100-cards", apres100Scores);
-  buildScoreCards("journee-cards", journeeScores);
-
-  buildBars("top100-bars", top100Scores);
-  buildBars("apres100-bars", apres100Scores);
-  buildBars("journee-bars", journeeScores);
-
-  buildClassement("classement-top100", top100Scores);
-  buildClassement("classement-journee", journeeScores);
-
-  buildTable("table-top100", top100, "top100");
-  buildTable("table-apres100", apres100, "apres100");
-  buildTable("table-journee", journee, "journee");
-
-  buildHistorique(toutesLesDonnees);
-
-  updateTop100Info();
-  setMessage("Résultats à jour.");
-}
-
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("bureau").addEventListener("change", updateTop100Info);
   document.getElementById("phase").addEventListener("change", updateTop100Info);
-  document.getElementById("filtre-bureau").addEventListener("change", chargerDonnees);
-  chargerDonnees();
+  document.getElementById("filtre-bureau").addEventListener("change", renderAll);
+
+  await chargerDonnees(false, "manual");
+  setupRealtime();
 });
