@@ -8,6 +8,30 @@ let lastStatsSnapshot = {
   journee: 0
 };
 
+const TEAMS = {
+  1: {
+    name: "Yohann Hachani",
+    short: "YH",
+    color: "#0A84FF",
+    image: "images/hachani.jpg",
+    subtitle: "Équipe 1"
+  },
+  2: {
+    name: "Pascal Charmot",
+    short: "PC",
+    color: "#34C759",
+    image: "images/charmot.jpg",
+    subtitle: "Équipe 2"
+  },
+  3: {
+    name: "Julien Ranc",
+    short: "JR",
+    color: "#FF9F0A",
+    image: "images/ranc.jpg",
+    subtitle: "Équipe 3"
+  }
+};
+
 function showToast(text, isError = false) {
   const toast = document.getElementById("toast");
   toast.textContent = text;
@@ -22,6 +46,47 @@ function showToast(text, isError = false) {
   }, 2200);
 }
 
+function getTeam(teamId) {
+  return TEAMS[teamId];
+}
+
+function teamAvatarHtml(teamId, size = "small") {
+  const team = getTeam(teamId);
+  const clsMap = {
+    small: ["score-avatar", "score-avatar-fallback"],
+    rank: ["rank-avatar", "rank-avatar-fallback"],
+    bar: ["bar-avatar", "bar-avatar-fallback"],
+    big: ["team-avatar", "team-avatar-fallback"]
+  };
+  const [imgClass, fallbackClass] = clsMap[size];
+
+  return `
+    <img
+      src="${team.image}"
+      alt="${team.name}"
+      class="${imgClass}"
+      onerror="this.style.display='none'; this.nextElementSibling.style.display='inline-flex';"
+    />
+    <span class="${fallbackClass}" style="display:none; background:${team.color};">${team.short}</span>
+  `;
+}
+
+function renderTeamButtons() {
+  [1, 2, 3].forEach((id) => {
+    const team = getTeam(id);
+    const btn = document.getElementById(`team-${id}`);
+    if (!btn) return;
+
+    btn.innerHTML = `
+      ${teamAvatarHtml(id, "big")}
+      <span class="team-meta">
+        <span class="team-name">${team.name}</span>
+        <span class="team-sub">${team.subtitle}</span>
+      </span>
+    `;
+  });
+}
+
 function setEquipe(e) {
   equipe = e;
   document.querySelectorAll(".team-grid .segment-btn").forEach((btn) => {
@@ -33,11 +98,14 @@ function setEquipe(e) {
 
 function setViewMode(mode) {
   currentView = mode;
+
   document.querySelectorAll(".view-segment .segment-btn").forEach((btn) => {
     btn.classList.remove("active");
   });
+
   const active = document.getElementById("view-" + mode);
   if (active) active.classList.add("active");
+
   renderAll();
 }
 
@@ -130,7 +198,12 @@ async function envoyer() {
   }
 
   const { error } = await window.supabaseClient.from("passages").insert([
-    { bureau, equipe, rang: nombre, phase }
+    {
+      bureau,
+      equipe,
+      rang: nombre,
+      phase
+    }
   ]);
 
   if (error) {
@@ -141,7 +214,6 @@ async function envoyer() {
 
   document.getElementById("rang").value = "";
   showToast("Enregistré");
-  // Pas besoin de reload manuel : Realtime prendra le relais
 }
 
 function aggregateByTeam(data) {
@@ -170,9 +242,11 @@ function aggregateByBureau(data) {
 
 function getDatasets() {
   const dataFiltrees = appliquerFiltre(toutesLesDonnees);
+
   const top100 = dataFiltrees.filter((row) => row.phase === "top100");
   const apres100 = dataFiltrees.filter((row) => row.phase === "journee");
   const journee = [...top100, ...apres100];
+
   return { top100, apres100, journee };
 }
 
@@ -242,18 +316,37 @@ function renderHeroStats() {
 function renderScoreCards(scores) {
   const target = document.getElementById("score-cards");
   target.innerHTML = `
-    <div class="score-card"><span class="score-name">Yohann HACHANI</span><span class="score-value">${scores[1]}</span></div>
-    <div class="score-card"><span class="score-name">Pascal CHARMOT</span><span class="score-value">${scores[2]}</span></div>
-    <div class="score-card"><span class="score-name">Julien RANC</span><span class="score-value">${scores[3]}</span></div>
+    <div class="score-card">
+      <div class="score-name-wrap">
+        ${teamAvatarHtml(1, "small")}
+        <span class="score-name">${TEAMS[1].name}</span>
+      </div>
+      <span class="score-value">${scores[1]}</span>
+    </div>
+    <div class="score-card">
+      <div class="score-name-wrap">
+        ${teamAvatarHtml(2, "small")}
+        <span class="score-name">${TEAMS[2].name}</span>
+      </div>
+      <span class="score-value">${scores[2]}</span>
+    </div>
+    <div class="score-card">
+      <div class="score-name-wrap">
+        ${teamAvatarHtml(3, "small")}
+        <span class="score-name">${TEAMS[3].name}</span>
+      </div>
+      <span class="score-value">${scores[3]}</span>
+    </div>
   `;
 }
 
 function renderRanking(scores) {
   const target = document.getElementById("classement-principal");
+
   const ranking = [
-    { Yohann HACHANI, score: scores[1] || 0 },
-    { Pascal CHARMOT, score: scores[2] || 0 },
-    { Julien RANC, score: scores[3] || 0 }
+    { equipe: 1, score: scores[1] || 0 },
+    { equipe: 2, score: scores[2] || 0 },
+    { equipe: 3, score: scores[3] || 0 }
   ].sort((a, b) => b.score - a.score);
 
   const first = ranking[0];
@@ -263,14 +356,32 @@ function renderRanking(scores) {
 
   target.innerHTML = `
     <div class="rank-card">
-      <div class="rank-top"><div class="rank-title">1er : Équipe ${first.equipe}</div><div class="rank-score">${first.score}</div></div>
+      <div class="rank-top">
+        <div class="rank-name-wrap">
+          ${teamAvatarHtml(first.equipe, "rank")}
+          <div class="rank-title">1er : ${TEAMS[first.equipe].name}</div>
+        </div>
+        <div class="rank-score">${first.score}</div>
+      </div>
     </div>
     <div class="rank-card">
-      <div class="rank-top"><div class="rank-title">2e : Équipe ${second.equipe}</div><div class="rank-score">${second.score}</div></div>
+      <div class="rank-top">
+        <div class="rank-name-wrap">
+          ${teamAvatarHtml(second.equipe, "rank")}
+          <div class="rank-title">2e : ${TEAMS[second.equipe].name}</div>
+        </div>
+        <div class="rank-score">${second.score}</div>
+      </div>
     </div>
     <div class="rank-card">
-      <div class="rank-top"><div class="rank-title">3e : Équipe ${third.equipe}</div><div class="rank-score">${third.score}</div></div>
-      <div class="rank-sub">Équipe ${first.equipe} a ${ecart} personne(s) d’avance sur l’équipe ${second.equipe}</div>
+      <div class="rank-top">
+        <div class="rank-name-wrap">
+          ${teamAvatarHtml(third.equipe, "rank")}
+          <div class="rank-title">3e : ${TEAMS[third.equipe].name}</div>
+        </div>
+        <div class="rank-score">${third.score}</div>
+      </div>
+      <div class="rank-sub">${TEAMS[first.equipe].name} a ${ecart} personne(s) d’avance sur ${TEAMS[second.equipe].name}</div>
     </div>
   `;
 }
@@ -279,20 +390,28 @@ function renderBars(scores) {
   const target = document.getElementById("main-bars");
   const max = Math.max(scores[1], scores[2], scores[3], 1);
 
-  function row(label, value) {
+  function row(teamId, value) {
     const width = Math.round((value / max) * 100);
     return `
       <div class="bar-row">
-        <div class="bar-head"><span>${label}</span><span>${value}</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+        <div class="bar-head">
+          <div class="bar-head-left">
+            ${teamAvatarHtml(teamId, "bar")}
+            <span>${TEAMS[teamId].name}</span>
+          </div>
+          <span>${value}</span>
+        </div>
+        <div class="bar-track">
+          <div class="bar-fill" style="width:${width}%; background:linear-gradient(90deg, ${TEAMS[teamId].color}, ${TEAMS[teamId].color}cc);"></div>
+        </div>
       </div>
     `;
   }
 
   target.innerHTML = `
-    ${row("Yohann HACHANI", scores[1])}
-    ${row("Pascal CHARMOT", scores[2])}
-    ${row("Julien RANC", scores[3])}
+    ${row(1, scores[1])}
+    ${row(2, scores[2])}
+    ${row(3, scores[3])}
   `;
 }
 
@@ -344,9 +463,9 @@ function renderTable(data, mode) {
         <thead>
           <tr>
             <th>Bureau</th>
-            <th>Yohann HACHANI</th>
-            <th>Pascal CHARMOT</th>
-            <th>Julien RANC</th>
+            <th>${TEAMS[1].short}</th>
+            <th>${TEAMS[2].short}</th>
+            <th>${TEAMS[3].short}</th>
             <th>Total</th>
             <th>État</th>
           </tr>
@@ -370,7 +489,7 @@ function renderHistorique() {
     <div class="history-list">
       ${recent.map((row) => `
         <div class="history-item">
-          <div class="history-line">${row.bureau} — Équipe ${row.equipe} — ${row.rang}</div>
+          <div class="history-line">${row.bureau} — ${TEAMS[row.equipe].name} — ${row.rang}</div>
           <div class="history-meta">${row.phase === "top100" ? "100 premiers" : "Après les 100"} · ID ${row.id}</div>
         </div>
       `).join("")}
@@ -380,6 +499,7 @@ function renderHistorique() {
 
 function renderAll() {
   renderHeroStats();
+
   const current = getCurrentDataset();
   renderScoreCards(current.scores);
   renderRanking(current.scores);
@@ -517,19 +637,19 @@ async function copierResume() {
     `Résumé - ${filtre === "TOUS" ? "Tous les bureaux" : filtre}`,
     ``,
     `100 premiers`,
-    `Yohann HACHANI : ${top100Scores[1]}`,
-    `Pascal CHARMOT : ${top100Scores[2]}`,
-    `Julien RANC : ${top100Scores[3]}`,
+    `${TEAMS[1].name} : ${top100Scores[1]}`,
+    `${TEAMS[2].name} : ${top100Scores[2]}`,
+    `${TEAMS[3].name} : ${top100Scores[3]}`,
     ``,
     `Après les 100`,
-    `Yohann HACHANI : ${apres100Scores[1]}`,
-    `Pascal CHARMOT : ${apres100Scores[2]}`,
-    `Julien RANC : ${apres100Scores[3]}`,
+    `${TEAMS[1].name} : ${apres100Scores[1]}`,
+    `${TEAMS[2].name} : ${apres100Scores[2]}`,
+    `${TEAMS[3].name} : ${apres100Scores[3]}`,
     ``,
     `Total journée`,
-    `Yohann HACHANI : ${journeeScores[1]}`,
-    `Pascal CHARMOT : ${journeeScores[2]}`,
-    `Julien RANC : ${journeeScores[3]}`
+    `${TEAMS[1].name} : ${journeeScores[1]}`,
+    `${TEAMS[2].name} : ${journeeScores[2]}`,
+    `${TEAMS[3].name} : ${journeeScores[3]}`
   ].join("\n");
 
   try {
@@ -542,6 +662,8 @@ async function copierResume() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  renderTeamButtons();
+
   document.getElementById("bureau").addEventListener("change", updateTop100Info);
   document.getElementById("phase").addEventListener("change", updateTop100Info);
   document.getElementById("filtre-bureau").addEventListener("change", renderAll);
