@@ -1,63 +1,71 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Checkpoint Course Tassin</title>
+  <meta charset="UTF-8">
+  <title>Comptabilisation Course Tassin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<link rel="stylesheet" href="style.css">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
-<script src="supabase.js"></script>
-<script src="app.js" defer></script>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
 
-<meta name="viewport" content="width=device-width, initial-scale=1">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+  <script src="app.js" defer></script>
 </head>
-
 <body>
+  <div class="container">
+    <h1>Comptabilisation</h1>
+    <p class="subtitle">Saisie des passages par bureau</p>
 
-<h1>Checkpoint</h1>
+    <div class="card">
+      <label for="bureau">Bureau</label>
+      <select id="bureau">
+        <option value="Bureau 1">Bureau 1</option>
+        <option value="Bureau 2">Bureau 2</option>
+        <option value="Bureau 3">Bureau 3</option>
+        <option value="Bureau 4">Bureau 4</option>
+        <option value="Bureau 5">Bureau 5</option>
+        <option value="Bureau 6">Bureau 6</option>
+        <option value="Bureau 7">Bureau 7</option>
+        <option value="Bureau 8">Bureau 8</option>
+        <option value="Bureau 9">Bureau 9</option>
+        <option value="Bureau 10">Bureau 10</option>
+        <option value="Bureau 11">Bureau 11</option>
+        <option value="Bureau 12">Bureau 12</option>
+        <option value="Bureau 13">Bureau 13</option>
+        <option value="Bureau 14">Bureau 14</option>
+        <option value="Bureau 15">Bureau 15</option>
+      </select>
 
-<select id="checkpoint">
-<option value="BV1">BV1</option>
-<option value="BV2">BV2</option>
-<option value="BV3">BV3</option>
-<option value="BV4">BV4</option>
-<option value="BV5">BV5</option>
-<option value="BV6">BV6</option>
-<option value="BV7">BV7</option>
-<option value="BV8">BV8</option>
-<option value="BV9">BV9</option>
-<option value="BV10">BV10</option>
-<option value="BV11">BV11</option>
-<option value="BV12">BV12</option>
-<option value="BV13">BV13</option>
-<option value="BV14">BV14</option>
-<option value="BV15">BV15</option>
-</select>
+      <label>Équipe</label>
+      <div class="team-grid">
+        <button id="team-1" class="team-btn" type="button" onclick="setEquipe(1)">Équipe 1</button>
+        <button id="team-2" class="team-btn" type="button" onclick="setEquipe(2)">Équipe 2</button>
+        <button id="team-3" class="team-btn" type="button" onclick="setEquipe(3)">Équipe 3</button>
+      </div>
 
-<h2>Equipe</h2>
+      <label for="rang">Rang / nombre</label>
+      <input id="rang" type="number" min="1" placeholder="Ex : 12">
 
-<button onclick="setEquipe(1)">Equipe 1</button>
-<button onclick="setEquipe(2)">Equipe 2</button>
-<button onclick="setEquipe(3)">Equipe 3</button>
+      <label for="phase">Phase</label>
+      <select id="phase">
+        <option value="top100">100 premiers</option>
+        <option value="journee">Toute la journée</option>
+      </select>
 
-<h2>Rang</h2>
+      <button class="save-btn" type="button" onclick="envoyer()">Enregistrer</button>
+    </div>
 
-<input id="rang" type="number">
+    <div class="links">
+      <a href="results.html">Résultats 100 premiers</a>
+      <a href="results_day.html">Résultats journée</a>
+    </div>
+  </div>
 
-<h2>Phase</h2>
-
-<select id="phase">
-<option value="top100">Top 100</option>
-<option value="journee">Journée</option>
-</select>
-
-<button onclick="envoyer()">Enregistrer</button>
-
-<br><br>
-
-<a href="results.html">Résultat Top100</a>
-<br>
-<a href="results_day.html">Résultat Journée</a>
-
+  <script>
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js");
+    }
+  </script>
 </body>
 </html>
