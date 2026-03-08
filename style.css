@@ -225,3 +225,13 @@ th {
     grid-template-columns: 1fr;
   }
 }
+
+.top100-info {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 12px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  color: #1d4ed8;
+  font-weight: 700;
+}
