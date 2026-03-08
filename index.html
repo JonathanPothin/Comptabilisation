@@ -5,12 +5,12 @@
   <title>Comptabilisation Course Tassin</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
-  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="style.css?v=4">
   <link rel="manifest" href="manifest.json">
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase.js?v=3"></script>
-  <script src="app.js?v=3" defer></script>
+  <script src="supabase.js?v=4"></script>
+  <script src="app.js?v=4" defer></script>
 </head>
 <body>
   <div class="app">
@@ -19,8 +19,23 @@
       <p>Course sportive – bureaux de vote</p>
     </header>
 
+    <section class="panel panel-organizer">
+      <div class="panel-head">
+        <h2>Tableau de bord organisateur</h2>
+        <span class="badge-live">LIVE</span>
+      </div>
+      <div id="organizer-summary" class="organizer-summary"></div>
+    </section>
+
     <section class="panel">
-      <h2>Saisie</h2>
+      <div class="panel-head">
+        <h2>Saisie</h2>
+        <div class="actions-inline">
+          <button class="small-btn" type="button" onclick="annulerDerniereSaisie()">Annuler la dernière saisie</button>
+          <button class="small-btn dark" type="button" onclick="exporterCSV()">Exporter CSV</button>
+          <button class="small-btn dark" type="button" onclick="copierResume()">Copier le résumé</button>
+        </div>
+      </div>
 
       <label for="bureau">Bureau</label>
       <select id="bureau">
@@ -49,18 +64,52 @@
       </div>
 
       <label for="rang">Nombre de personnes</label>
-<input id="rang" type="number" min="1" max="100" placeholder="Ex : 20">
-      
+      <input id="rang" type="number" min="1" max="100" placeholder="Ex : 20">
+
+      <div class="quick-add">
+        <button type="button" class="quick-btn" onclick="ajouterValeur(1)">+1</button>
+        <button type="button" class="quick-btn" onclick="ajouterValeur(5)">+5</button>
+        <button type="button" class="quick-btn" onclick="ajouterValeur(10)">+10</button>
+      </div>
+
       <label for="phase">Phase</label>
       <select id="phase">
         <option value="top100">100 premiers</option>
-        <option value="journee">Toute la journée</option>
+        <option value="journee">Ajouts après les 100</option>
       </select>
+
       <div id="top100-info" class="top100-info"></div>
+
       <button class="save-btn" type="button" onclick="envoyer()">Enregistrer</button>
       <button class="refresh-btn" type="button" onclick="chargerDonnees()">Actualiser les résultats</button>
 
       <p id="message" class="message"></p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Filtre</h2>
+      </div>
+
+      <label for="filtre-bureau">Afficher les résultats pour</label>
+      <select id="filtre-bureau">
+        <option value="TOUS">Tous les bureaux</option>
+        <option value="Bureau 1">Bureau 1</option>
+        <option value="Bureau 2">Bureau 2</option>
+        <option value="Bureau 3">Bureau 3</option>
+        <option value="Bureau 4">Bureau 4</option>
+        <option value="Bureau 5">Bureau 5</option>
+        <option value="Bureau 6">Bureau 6</option>
+        <option value="Bureau 7">Bureau 7</option>
+        <option value="Bureau 8">Bureau 8</option>
+        <option value="Bureau 9">Bureau 9</option>
+        <option value="Bureau 10">Bureau 10</option>
+        <option value="Bureau 11">Bureau 11</option>
+        <option value="Bureau 12">Bureau 12</option>
+        <option value="Bureau 13">Bureau 13</option>
+        <option value="Bureau 14">Bureau 14</option>
+        <option value="Bureau 15">Bureau 15</option>
+      </select>
     </section>
 
     <section class="grid-stats">
@@ -70,19 +119,43 @@
       </div>
 
       <div class="panel stat-card">
-        <h2>Toute la journée</h2>
+        <h2>Ajouts après les 100</h2>
+        <div id="apres100-cards" class="score-cards"></div>
+      </div>
+
+      <div class="panel stat-card">
+        <h2>Total journée</h2>
         <div id="journee-cards" class="score-cards"></div>
       </div>
     </section>
 
-    <section class="panel">
-      <h2>Infographie 100 premiers</h2>
-      <div id="top100-bars"></div>
+    <section class="grid-stats two-cols">
+      <div class="panel">
+        <h2>Infographie 100 premiers</h2>
+        <div id="top100-bars"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Infographie ajouts après les 100</h2>
+        <div id="apres100-bars"></div>
+      </div>
     </section>
 
     <section class="panel">
-      <h2>Infographie journée</h2>
+      <h2>Infographie total journée</h2>
       <div id="journee-bars"></div>
+    </section>
+
+    <section class="grid-stats two-cols">
+      <div class="panel">
+        <h2>Classement 100 premiers</h2>
+        <div id="classement-top100"></div>
+      </div>
+
+      <div class="panel">
+        <h2>Classement total journée</h2>
+        <div id="classement-journee"></div>
+      </div>
     </section>
 
     <section class="panel">
@@ -91,8 +164,18 @@
     </section>
 
     <section class="panel">
-      <h2>Par bureau – journée</h2>
+      <h2>Par bureau – ajouts après les 100</h2>
+      <div id="table-apres100"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Par bureau – total journée</h2>
       <div id="table-journee"></div>
+    </section>
+
+    <section class="panel">
+      <h2>Dernières saisies</h2>
+      <div id="historique"></div>
     </section>
   </div>
 
