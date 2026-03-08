@@ -3,12 +3,14 @@ let equipe = null;
 function setEquipe(e) {
   equipe = e;
 
-  document.querySelectorAll(".team-btn").forEach(btn => {
+  document.querySelectorAll(".team-btn").forEach((btn) => {
     btn.classList.remove("active");
   });
 
   const activeBtn = document.getElementById("team-" + e);
-  if (activeBtn) activeBtn.classList.add("active");
+  if (activeBtn) {
+    activeBtn.classList.add("active");
+  }
 }
 
 async function envoyer() {
@@ -31,7 +33,7 @@ async function envoyer() {
     return;
   }
 
-  const { error } = await supabase.from("passages").insert([
+  const { error } = await supabaseClient.from("passages").insert([
     {
       bureau: bureau,
       equipe: equipe,
