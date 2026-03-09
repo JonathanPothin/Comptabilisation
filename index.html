@@ -5,13 +5,13 @@
   <title>Comptabilisation</title>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 
-  <link rel="stylesheet" href="style.css?v=7" />
+  <link rel="stylesheet" href="style.css?v=8" />
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="favicon.ico" />
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="supabase.js?v=7"></script>
-  <script src="app.js?v=7" defer></script>
+  <script src="supabase.js?v=8"></script>
+  <script src="app.js?v=8" defer></script>
 </head>
 <body>
   <div class="app-shell">
@@ -36,35 +36,19 @@
         <span id="stat-top100" class="stat-value">0</span>
       </div>
       <div class="stat-card big">
-        <span class="stat-label">Participation globale</span>
-        <span id="stat-participation" class="stat-value">0%</span>
+        <span class="stat-label">Participation 19h</span>
+        <span id="stat-participation-19h" class="stat-value">0%</span>
       </div>
     </section>
 
     <section class="card glass fade-in">
       <div class="section-title-row">
-        <h2>Saisie</h2>
-        <button class="icon-btn" type="button" onclick="chargerDonnees(true, 'manual')">Actualiser</button>
+        <h2>Course – 100 premiers</h2>
+        <button class="icon-btn" type="button" onclick="chargerToutesLesDonnees(true, 'manual')">Actualiser</button>
       </div>
 
-      <label for="bureau">Bureau</label>
-      <select id="bureau">
-        <option value="Bureau 1 Hôtel de ville">Bureau 1 Hôtel de ville</option>
-        <option value="Bureau 2 Gymnase des croisettes">Bureau 2 Gymnase des croisettes</option>
-        <option value="Bureau 3 Ecole Leclerc">Bureau 3 Ecole Leclerc</option>
-        <option value="Bureau 4 Ecole Marin">Bureau 4 Ecole Marin</option>
-        <option value="Bureau 5 Ecole Marin">Bureau 5 Ecole Marin</option>
-        <option value="Bureau 6 Ecole Baraillon">Bureau 6 Ecole Baraillon</option>
-        <option value="Bureau 7 Ecole Baraillon">Bureau 7 Ecole Baraillon</option>
-        <option value="Bureau 8 Ecole Leclerc">Bureau 8 Ecole Leclerc</option>
-        <option value="Bureau 9 Ecole Berlier Vincent">Bureau 9 Ecole Berlier Vincent</option>
-        <option value="Bureau 10 Ecole Berlier Vincent">Bureau 10 Ecole Berlier Vincent</option>
-        <option value="Bureau 11 L’Oméga – Centre de loisirs du CPNG">Bureau 11 L’Oméga – Centre de loisirs du CPNG</option>
-        <option value="Bureau 12 L'Oméga Pôle associatif">Bureau 12 L'Oméga Pôle associatif</option>
-        <option value="Bureau 13 Gymnase des croisettes">Bureau 13 Gymnase des croisettes</option>
-        <option value="Bureau 14 Espace Leclerc Salle Molière">Bureau 14 Espace Leclerc Salle Molière</option>
-        <option value="Bureau 15 Espace Leclerc Salle Pagnol">Bureau 15 Espace Leclerc Salle Pagnol</option>
-      </select>
+      <label for="course-bureau">Bureau</label>
+      <select id="course-bureau"></select>
 
       <label>Équipe</label>
       <div class="segmented team-grid team-grid-candidates">
@@ -73,43 +57,15 @@
         <button id="team-3" class="segment-btn team-candidate-btn" type="button" onclick="setEquipe(3)"></button>
       </div>
 
-      <label for="rang">Nombre de personnes</label>
-      <input id="rang" type="number" min="1" max="100" inputmode="numeric" placeholder="Ex : 20" />
-
-      <label for="phase">Mode</label>
-      <select id="phase">
-        <option value="top100">100 premiers</option>
-      </select>
+      <label for="course-nombre">Nombre de personnes</label>
+      <input id="course-nombre" type="number" min="1" max="100" inputmode="numeric" placeholder="Ex : 20" />
 
       <div id="top100-info" class="info-banner"></div>
 
-      <button class="primary-btn" type="button" onclick="envoyer()">Enregistrer</button>
+      <button class="primary-btn" type="button" onclick="enregistrerPassage()">Enregistrer</button>
 
       <div class="meta-row">
         <span id="last-update" class="muted">Mis à jour à l’instant</span>
-      </div>
-    </section>
-
-    <section class="card glass fade-in">
-      <div class="section-title-row">
-        <h2>Vue</h2>
-        <select id="filtre-bureau" class="mini-select">
-           <option value="Bureau 1 Hôtel de ville">Bureau 1 Hôtel de ville</option>
-        <option value="Bureau 2 Gymnase des croisettes">Bureau 2 Gymnase des croisettes</option>
-        <option value="Bureau 3 Ecole Leclerc">Bureau 3 Ecole Leclerc</option>
-        <option value="Bureau 4 Ecole Marin">Bureau 4 Ecole Marin</option>
-        <option value="Bureau 5 Ecole Marin">Bureau 5 Ecole Marin</option>
-        <option value="Bureau 6 Ecole Baraillon">Bureau 6 Ecole Baraillon</option>
-        <option value="Bureau 7 Ecole Baraillon">Bureau 7 Ecole Baraillon</option>
-        <option value="Bureau 8 Ecole Leclerc">Bureau 8 Ecole Leclerc</option>
-        <option value="Bureau 9 Ecole Berlier Vincent">Bureau 9 Ecole Berlier Vincent</option>
-        <option value="Bureau 10 Ecole Berlier Vincent">Bureau 10 Ecole Berlier Vincent</option>
-        <option value="Bureau 11 L’Oméga – Centre de loisirs du CPNG">Bureau 11 L’Oméga – Centre de loisirs du CPNG</option>
-        <option value="Bureau 12 L'Oméga Pôle associatif">Bureau 12 L'Oméga Pôle associatif</option>
-        <option value="Bureau 13 Gymnase des croisettes">Bureau 13 Gymnase des croisettes</option>
-        <option value="Bureau 14 Espace Leclerc Salle Molière">Bureau 14 Espace Leclerc Salle Molière</option>
-        <option value="Bureau 15 Espace Leclerc Salle Pagnol">Bureau 15 Espace Leclerc Salle Pagnol</option>
-        </select>
       </div>
     </section>
 
@@ -127,37 +83,61 @@
 
     <section class="card glass fade-in">
       <h2>Infographie 100 premiers</h2>
-      <div id="main-bars" class="bar-group"></div>
+      <div id="course-bars" class="bar-group"></div>
     </section>
 
     <section class="card glass fade-in">
       <h2>Par bureau</h2>
-      <div id="table-main"></div>
+      <div id="course-table"></div>
     </section>
 
     <section class="card glass fade-in">
-      <h2>Participation journée</h2>
+      <div class="section-title-row">
+        <h2>Participation</h2>
+        <span class="muted">Saisie libre des points de participation</span>
+      </div>
+
+      <div class="grid-two">
+        <div>
+          <label for="participation-bureau">Bureau</label>
+          <select id="participation-bureau"></select>
+        </div>
+
+        <div>
+          <label for="participation-heure">Point horaire</label>
+          <select id="participation-heure">
+            <option value="10h">10h – tranche 7h-10h</option>
+            <option value="12h">12h – tranche 10h-12h</option>
+            <option value="15h">15h – tranche 12h-15h</option>
+            <option value="19h">19h – tranche 15h-19h</option>
+          </select>
+        </div>
+      </div>
+
+      <label for="participation-pct">Participation (%)</label>
+      <input id="participation-pct" type="number" step="0.1" min="0" max="100" inputmode="decimal" placeholder="Ex : 8.4" />
+
+      <button class="primary-btn" type="button" onclick="enregistrerParticipation()">Enregistrer la participation</button>
+
       <p class="muted-block">
-        Taux cumulé de participation inspiré des points de participation électorale :
-        7h–10h, 10h–12h, 12h–15h, 15h–19h.
+        La participation est saisie manuellement. L’application affiche aussi une projection indicative sur une base d’environ 15 278 électeurs.
       </p>
+    </section>
 
-      <div class="participation-grid">
-        <div class="participation-card">
-          <h3>Participation globale</h3>
-          <div id="participation-global" class="vertical-chart"></div>
-        </div>
+    <section class="card glass fade-in">
+      <h2>Participation globale</h2>
+      <div id="participation-global-chart" class="vertical-chart"></div>
+      <div id="participation-global-summary" class="projection-grid"></div>
+    </section>
 
-        <div class="participation-card">
-          <h3>Participation par bureau</h3>
-          <div id="participation-bureaux" class="bureau-chart"></div>
-          <div class="participation-legend">
-            <span class="legend-item"><span class="legend-dot slot-10"></span>10h</span>
-            <span class="legend-item"><span class="legend-dot slot-12"></span>12h</span>
-            <span class="legend-item"><span class="legend-dot slot-15"></span>15h</span>
-            <span class="legend-item"><span class="legend-dot slot-19"></span>19h</span>
-          </div>
-        </div>
+    <section class="card glass fade-in">
+      <h2>Participation par bureau</h2>
+      <div id="participation-bureaux-chart" class="bureau-chart"></div>
+      <div class="participation-legend">
+        <span class="legend-item"><span class="legend-dot slot-10"></span>10h</span>
+        <span class="legend-item"><span class="legend-dot slot-12"></span>12h</span>
+        <span class="legend-item"><span class="legend-dot slot-15"></span>15h</span>
+        <span class="legend-item"><span class="legend-dot slot-19"></span>19h</span>
       </div>
     </section>
 
@@ -165,14 +145,19 @@
       <summary>Options organisateur</summary>
 
       <div class="options-grid">
-        <button class="secondary-btn danger" type="button" onclick="annulerDerniereSaisie()">Annuler la dernière saisie</button>
+        <button class="secondary-btn danger" type="button" onclick="annulerDerniereSaisieCourse()">Annuler la dernière saisie course</button>
         <button class="secondary-btn" type="button" onclick="exporterCSV()">Exporter CSV</button>
         <button class="secondary-btn" type="button" onclick="copierResume()">Copier le résumé</button>
       </div>
 
       <div class="history-block">
-        <h3>Dernières saisies</h3>
-        <div id="historique"></div>
+        <h3>Dernières saisies course</h3>
+        <div id="historique-course"></div>
+      </div>
+
+      <div class="history-block">
+        <h3>Dernières saisies participation</h3>
+        <div id="historique-participation"></div>
       </div>
     </details>
   </div>
