@@ -1,12 +1,15 @@
 let equipe = null;
 let toutesLesDonnees = [];
-let currentView = "top100";
 let realtimeChannel = null;
 let lastStatsSnapshot = {
   bureauxComplets: "",
   top100: 0,
-  journee: 0
+  participation: ""
 };
+
+const TOTAL_INSCRITS_TASSIN = 15278;
+const NB_BUREAUX = 15;
+const INSCRITS_PAR_BUREAU = Math.round(TOTAL_INSCRITS_TASSIN / NB_BUREAUX);
 
 const TEAMS = {
   1: {
@@ -31,6 +34,13 @@ const TEAMS = {
     subtitle: "Équipe 3"
   }
 };
+
+const PARTICIPATION_SLOTS = [
+  { key: "10h", hour: 10, label: "10h", css: "slot-10" },
+  { key: "12h", hour: 12, label: "12h", css: "slot-12" },
+  { key: "15h", hour: 15, label: "15h", css: "slot-15" },
+  { key: "19h", hour: 19, label: "19h", css: "slot-19" }
+];
 
 function showToast(text, isError = false) {
   const toast = document.getElementById("toast");
@@ -96,20 +106,6 @@ function setEquipe(e) {
   if (btn) btn.classList.add("active");
 }
 
-function setViewMode(mode) {
-  currentView = mode;
-
-  document.querySelectorAll(".view-segment .segment-btn").forEach((btn) => {
-    btn.classList.remove("active");
-  });
-
-  const active = document.getElementById("view-" + mode);
-  if (active) active.classList.add("active");
-
-  renderAll();
-}
-
-
 function formatLastUpdate(source = "live") {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
@@ -137,16 +133,9 @@ function getTop100TotalForBureau(bureau) {
 
 function updateTop100Info() {
   const bureau = document.getElementById("bureau").value;
-  const phase = document.getElementById("phase").value;
-  const info = document.getElementById("top100-info");
-
-  if (phase !== "top100") {
-    info.textContent = "Mode après les 100 : ces quantités s’ajoutent au total journée.";
-    return;
-  }
-
   const total = getTop100TotalForBureau(bureau);
   const reste = 100 - total;
+  const info = document.getElementById("top100-info");
 
   if (reste <= 0) {
     info.textContent = `${bureau} : les 100 premiers sont complets (100 / 100).`;
@@ -158,7 +147,7 @@ function updateTop100Info() {
 async function envoyer() {
   const bureau = document.getElementById("bureau").value;
   const nombre = parseInt(document.getElementById("rang").value, 10);
-  const phase = document.getElementById("phase").value;
+  const phase = "top100";
 
   if (!bureau) {
     showToast("Choisis un bureau.", true);
@@ -175,21 +164,19 @@ async function envoyer() {
     return;
   }
 
-  if (phase === "top100") {
-    const totalActuel = getTop100TotalForBureau(bureau);
+  const totalActuel = getTop100TotalForBureau(bureau);
 
-    if (totalActuel >= 100) {
-      showToast(`${bureau} a déjà atteint 100 / 100.`, true);
-      updateTop100Info();
-      return;
-    }
+  if (totalActuel >= 100) {
+    showToast(`${bureau} a déjà atteint 100 / 100.`, true);
+    updateTop100Info();
+    return;
+  }
 
-    if (totalActuel + nombre > 100) {
-      const reste = 100 - totalActuel;
-      showToast(`Impossible : tu peux ajouter au maximum ${reste}.`, true);
-      updateTop100Info();
-      return;
-    }
+  if (totalActuel + nombre > 100) {
+    const reste = 100 - totalActuel;
+    showToast(`Impossible : tu peux ajouter au maximum ${reste}.`, true);
+    updateTop100Info();
+    return;
   }
 
   const { error } = await window.supabaseClient.from("passages").insert([
@@ -235,30 +222,6 @@ function aggregateByBureau(data) {
   return bureaux;
 }
 
-function getDatasets() {
-  const dataFiltrees = appliquerFiltre(toutesLesDonnees);
-
-  const top100 = dataFiltrees.filter((row) => row.phase === "top100");
-  const apres100 = dataFiltrees.filter((row) => row.phase === "journee");
-  const journee = [...top100, ...apres100];
-
-  return { top100, apres100, journee };
-}
-
-function getCurrentDataset() {
-  const { top100, apres100, journee } = getDatasets();
-
-  if (currentView === "top100") {
-    return { key: "top100", data: top100, scores: aggregateByTeam(top100) };
-  }
-
-  if (currentView === "apres100") {
-    return { key: "apres100", data: apres100, scores: aggregateByTeam(apres100) };
-  }
-
-  return { key: "journee", data: journee, scores: aggregateByTeam(journee) };
-}
-
 function animateNumber(el, newValue, suffix = "") {
   const oldValue = parseInt((el.dataset.value || "0"), 10);
   if (oldValue === newValue) {
@@ -283,21 +246,24 @@ function animateNumber(el, newValue, suffix = "") {
   requestAnimationFrame(step);
 }
 
+function formatPercent(value) {
+  return `${value.toFixed(1).replace(".", ",")}%`;
+}
+
 function renderHeroStats() {
   const top100Data = toutesLesDonnees.filter((row) => row.phase === "top100");
-  const journeeData = [...toutesLesDonnees];
-
   const top100Total = top100Data.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
-  const journeeTotal = journeeData.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
 
   const top100Bureaux = aggregateByBureau(top100Data);
   const nbComplets = Object.values(top100Bureaux).filter((b) => b.total >= 100).length;
-
   const bureauxText = `${nbComplets} / 15`;
+
+  const participationGlobale = (top100Total / TOTAL_INSCRITS_TASSIN) * 100;
+  const participationText = formatPercent(participationGlobale);
 
   const bureauxEl = document.getElementById("stat-bureaux");
   const top100El = document.getElementById("stat-top100");
-  const journeeEl = document.getElementById("stat-journee");
+  const participationEl = document.getElementById("stat-participation");
 
   if (lastStatsSnapshot.bureauxComplets !== bureauxText) {
     bureauxEl.textContent = bureauxText;
@@ -305,7 +271,11 @@ function renderHeroStats() {
   }
 
   animateNumber(top100El, top100Total);
-  animateNumber(journeeEl, journeeTotal);
+
+  if (lastStatsSnapshot.participation !== participationText) {
+    participationEl.textContent = participationText;
+    lastStatsSnapshot.participation = participationText;
+  }
 }
 
 function renderScoreCards(scores) {
@@ -410,7 +380,7 @@ function renderBars(scores) {
   `;
 }
 
-function renderTable(data, mode) {
+function renderTable(data) {
   const target = document.getElementById("table-main");
   const bureaux = aggregateByBureau(data);
   const noms = Object.keys(bureaux).sort((a, b) => {
@@ -428,17 +398,10 @@ function renderTable(data, mode) {
 
   noms.forEach((bureau) => {
     const item = bureaux[bureau];
-    let statusHtml = `<span class="status-pill">—</span>`;
-    let totalText = `${item.total}`;
-
-    if (mode === "top100") {
-      totalText = `${item.total} / 100`;
-      if (item.total >= 100) {
-        statusHtml = `<span class="status-pill status-ok">Complet</span>`;
-      } else {
-        statusHtml = `<span class="status-pill status-wait">Reste ${100 - item.total}</span>`;
-      }
-    }
+    const totalText = `${item.total} / 100`;
+    const statusHtml = item.total >= 100
+      ? `<span class="status-pill status-ok">Complet</span>`
+      : `<span class="status-pill status-wait">Reste ${100 - item.total}</span>`;
 
     rows += `
       <tr>
@@ -485,21 +448,123 @@ function renderHistorique() {
       ${recent.map((row) => `
         <div class="history-item">
           <div class="history-line">${row.bureau} — ${TEAMS[row.equipe].name} — ${row.rang}</div>
-          <div class="history-meta">${row.phase === "top100" ? "100 premiers" : "Après les 100"} · ID ${row.id}</div>
+          <div class="history-meta">100 premiers · ID ${row.id}</div>
         </div>
       `).join("")}
     </div>
   `;
 }
 
+function extractHour(dateString) {
+  const d = new Date(dateString);
+  return d.getHours();
+}
+
+function sumUntilHour(data, hourLimit) {
+  return data
+    .filter((row) => extractHour(row.created_at) < hourLimit)
+    .reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
+}
+
+function computeGlobalParticipationPoints(data) {
+  return PARTICIPATION_SLOTS.map((slot) => {
+    const cumul = sumUntilHour(data, slot.hour);
+    const rate = (cumul / TOTAL_INSCRITS_TASSIN) * 100;
+    return {
+      key: slot.key,
+      label: slot.label,
+      css: slot.css,
+      cumul,
+      rate
+    };
+  });
+}
+
+function computeBureauParticipationPoints(data) {
+  const bureaux = {};
+  for (let i = 1; i <= NB_BUREAUX; i++) {
+    bureaux[`Bureau ${i}`] = [];
+  }
+
+  Object.keys(bureaux).forEach((bureau) => {
+    const bureauData = data.filter((row) => row.bureau === bureau);
+    bureaux[bureau] = PARTICIPATION_SLOTS.map((slot) => {
+      const cumul = sumUntilHour(bureauData, slot.hour);
+      const rate = (cumul / INSCRITS_PAR_BUREAU) * 100;
+      return {
+        key: slot.key,
+        label: slot.label,
+        css: slot.css,
+        cumul,
+        rate
+      };
+    });
+  });
+
+  return bureaux;
+}
+
+function renderParticipationGlobal(data) {
+  const target = document.getElementById("participation-global");
+  const points = computeGlobalParticipationPoints(data);
+  const max = Math.max(...points.map((p) => p.rate), 1);
+
+  target.innerHTML = points.map((point) => {
+    const height = Math.max(6, Math.round((point.rate / max) * 180));
+    return `
+      <div class="vertical-bar-col">
+        <div class="vertical-value">${formatPercent(point.rate)}</div>
+        <div class="vertical-bar-wrap">
+          <div class="vertical-bar ${point.css}" style="height:${height}px;"></div>
+        </div>
+        <div class="vertical-label">${point.label}</div>
+      </div>
+    `;
+  }).join("");
+}
+
+function renderParticipationBureaux(data) {
+  const target = document.getElementById("participation-bureaux");
+  const bureaux = computeBureauParticipationPoints(data);
+
+  target.innerHTML = Object.keys(bureaux).map((bureau) => {
+    const points = bureaux[bureau];
+    const max = Math.max(...points.map((p) => p.rate), 1);
+
+    return `
+      <div class="bureau-row">
+        <div class="bureau-name">${bureau}</div>
+        <div class="bureau-bars">
+          ${points.map((point) => {
+            const height = Math.max(5, Math.round((point.rate / max) * 82));
+            return `
+              <div class="bureau-bar-col">
+                <div class="bureau-bar-value">${point.rate.toFixed(1).replace(".", ",")}%</div>
+                <div class="bureau-bar-wrap">
+                  <div class="bureau-bar ${point.css}" style="height:${height}px;"></div>
+                </div>
+                <div class="bureau-bar-label">${point.label}</div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
 function renderAll() {
   renderHeroStats();
 
-  const current = getCurrentDataset();
-  renderScoreCards(current.scores);
-  renderRanking(current.scores);
-  renderBars(current.scores);
-  renderTable(current.data, current.key);
+  const dataFiltrees = appliquerFiltre(toutesLesDonnees);
+  const scores = aggregateByTeam(dataFiltrees);
+
+  renderScoreCards(scores);
+  renderRanking(scores);
+  renderBars(scores);
+  renderTable(dataFiltrees);
+  renderParticipationGlobal(toutesLesDonnees);
+  renderParticipationBureaux(toutesLesDonnees);
   renderHistorique();
   updateTop100Info();
 }
@@ -516,7 +581,7 @@ async function chargerDonnees(showManualToast = false, source = "manual") {
     return;
   }
 
-  toutesLesDonnees = data || [];
+  toutesLesDonnees = (data || []).filter((row) => row.phase === "top100");
   renderAll();
   formatLastUpdate(source);
 
@@ -558,6 +623,7 @@ async function annulerDerniereSaisie() {
   const { data, error } = await window.supabaseClient
     .from("passages")
     .select("id")
+    .eq("phase", "top100")
     .order("id", { ascending: false })
     .limit(1);
 
@@ -618,33 +684,23 @@ function exporterCSV() {
 
 async function copierResume() {
   const dataFiltrees = appliquerFiltre(toutesLesDonnees);
-  const top100 = dataFiltrees.filter((row) => row.phase === "top100");
-  const apres100 = dataFiltrees.filter((row) => row.phase === "journee");
-  const journee = [...top100, ...apres100];
-
-  const top100Scores = aggregateByTeam(top100);
-  const apres100Scores = aggregateByTeam(apres100);
-  const journeeScores = aggregateByTeam(journee);
-
+  const scores = aggregateByTeam(dataFiltrees);
+  const participationPoints = computeGlobalParticipationPoints(toutesLesDonnees);
   const filtre = filtreBureauActuel();
 
   const texte = [
     `Résumé - ${filtre === "TOUS" ? "Tous les bureaux" : filtre}`,
     ``,
     `100 premiers`,
-    `${TEAMS[1].name} : ${top100Scores[1]}`,
-    `${TEAMS[2].name} : ${top100Scores[2]}`,
-    `${TEAMS[3].name} : ${top100Scores[3]}`,
+    `${TEAMS[1].name} : ${scores[1]}`,
+    `${TEAMS[2].name} : ${scores[2]}`,
+    `${TEAMS[3].name} : ${scores[3]}`,
     ``,
-    `Après les 100`,
-    `${TEAMS[1].name} : ${apres100Scores[1]}`,
-    `${TEAMS[2].name} : ${apres100Scores[2]}`,
-    `${TEAMS[3].name} : ${apres100Scores[3]}`,
-    ``,
-    `Total journée`,
-    `${TEAMS[1].name} : ${journeeScores[1]}`,
-    `${TEAMS[2].name} : ${journeeScores[2]}`,
-    `${TEAMS[3].name} : ${journeeScores[3]}`
+    `Participation globale`,
+    `10h : ${formatPercent(participationPoints[0].rate)}`,
+    `12h : ${formatPercent(participationPoints[1].rate)}`,
+    `15h : ${formatPercent(participationPoints[2].rate)}`,
+    `19h : ${formatPercent(participationPoints[3].rate)}`
   ].join("\n");
 
   try {
@@ -660,7 +716,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderTeamButtons();
 
   document.getElementById("bureau").addEventListener("change", updateTop100Info);
-  document.getElementById("phase").addEventListener("change", updateTop100Info);
   document.getElementById("filtre-bureau").addEventListener("change", renderAll);
 
   await chargerDonnees(false, "manual");
