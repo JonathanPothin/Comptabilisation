@@ -109,11 +109,6 @@ function setViewMode(mode) {
   renderAll();
 }
 
-function ajouterValeur(valeur) {
-  const input = document.getElementById("rang");
-  const current = parseInt(input.value || "0", 10);
-  input.value = current + valeur;
-}
 
 function formatLastUpdate(source = "live") {
   const now = new Date();
