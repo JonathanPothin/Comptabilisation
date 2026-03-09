@@ -1,15 +1,28 @@
 let equipe = null;
-let toutesLesDonnees = [];
-let realtimeChannel = null;
-let lastStatsSnapshot = {
-  bureauxComplets: "",
-  top100: 0,
-  participation: ""
-};
+let passages = [];
+let participations = [];
+let realtimePassagesChannel = null;
+let realtimeParticipationChannel = null;
 
 const TOTAL_INSCRITS_TASSIN = 15278;
-const NB_BUREAUX = 15;
-const INSCRITS_PAR_BUREAU = Math.round(TOTAL_INSCRITS_TASSIN / NB_BUREAUX);
+
+const BUREAUX = [
+  "Bureau 1 Hôtel de ville",
+  "Bureau 2 Gymnase des croisettes",
+  "Bureau 3 Ecole Leclerc",
+  "Bureau 4 Ecole Marin",
+  "Bureau 5 Ecole Marin",
+  "Bureau 6 Ecole Baraillon",
+  "Bureau 7 Ecole Baraillon",
+  "Bureau 8 Ecole Leclerc",
+  "Bureau 9 Ecole Berlier Vincent",
+  "Bureau 10 Ecole Berlier Vincent",
+  "Bureau 11 L’Oméga – Centre de loisirs du CPNG",
+  "Bureau 12 L'Oméga Pôle associatif",
+  "Bureau 13 Gymnase des croisettes",
+  "Bureau 14 Espace Leclerc Salle Molière",
+  "Bureau 15 Espace Leclerc Salle Pagnol"
+];
 
 const TEAMS = {
   1: {
@@ -35,11 +48,11 @@ const TEAMS = {
   }
 };
 
-const PARTICIPATION_SLOTS = [
-  { key: "10h", hour: 10, label: "10h", css: "slot-10" },
-  { key: "12h", hour: 12, label: "12h", css: "slot-12" },
-  { key: "15h", hour: 15, label: "15h", css: "slot-15" },
-  { key: "19h", hour: 19, label: "19h", css: "slot-19" }
+const PARTICIPATION_POINTS = [
+  { key: "10h", label: "10h", css: "slot-10" },
+  { key: "12h", label: "12h", css: "slot-12" },
+  { key: "15h", label: "15h", css: "slot-15" },
+  { key: "19h", label: "19h", css: "slot-19" }
 ];
 
 function showToast(text, isError = false) {
@@ -53,15 +66,24 @@ function showToast(text, isError = false) {
   clearTimeout(window.__toastTimer);
   window.__toastTimer = setTimeout(() => {
     toast.classList.remove("show");
-  }, 2200);
+  }, 2400);
 }
 
-function getTeam(teamId) {
-  return TEAMS[teamId];
+function formatLastUpdate(source = "live") {
+  const now = new Date();
+  const hh = String(now.getHours()).padStart(2, "0");
+  const mm = String(now.getMinutes()).padStart(2, "0");
+  const ss = String(now.getSeconds()).padStart(2, "0");
+  const prefix = source === "manual" ? "Actualisé à" : "Live à";
+  document.getElementById("last-update").textContent = `${prefix} ${hh}:${mm}:${ss}`;
+}
+
+function formatPercent(value) {
+  return `${Number(value).toFixed(1).replace(".", ",")}%`;
 }
 
 function teamAvatarHtml(teamId, size = "small") {
-  const team = getTeam(teamId);
+  const team = TEAMS[teamId];
   const clsMap = {
     small: ["score-avatar", "score-avatar-fallback"],
     rank: ["rank-avatar", "rank-avatar-fallback"],
@@ -81,9 +103,14 @@ function teamAvatarHtml(teamId, size = "small") {
   `;
 }
 
+function fillBureauSelect(selectId) {
+  const select = document.getElementById(selectId);
+  select.innerHTML = BUREAUX.map((bureau) => `<option value="${bureau}">${bureau}</option>`).join("");
+}
+
 function renderTeamButtons() {
   [1, 2, 3].forEach((id) => {
-    const team = getTeam(id);
+    const team = TEAMS[id];
     const btn = document.getElementById(`team-${id}`);
     if (!btn) return;
 
@@ -106,33 +133,40 @@ function setEquipe(e) {
   if (btn) btn.classList.add("active");
 }
 
-function formatLastUpdate(source = "live") {
-  const now = new Date();
-  const hh = String(now.getHours()).padStart(2, "0");
-  const mm = String(now.getMinutes()).padStart(2, "0");
-  const ss = String(now.getSeconds()).padStart(2, "0");
-  const prefix = source === "manual" ? "Actualisé à" : "Live à";
-  document.getElementById("last-update").textContent = `${prefix} ${hh}:${mm}:${ss}`;
+function aggregateCourseByTeam(data) {
+  const scores = { 1: 0, 2: 0, 3: 0 };
+  data.forEach((row) => {
+    scores[row.equipe] += Number(row.rang) || 0;
+  });
+  return scores;
 }
 
-function filtreBureauActuel() {
-  return document.getElementById("filtre-bureau").value;
-}
+function aggregateCourseByBureau(data) {
+  const result = {};
+  BUREAUX.forEach((bureau) => {
+    result[bureau] = { 1: 0, 2: 0, 3: 0, total: 0 };
+  });
 
-function appliquerFiltre(data) {
-  const filtre = filtreBureauActuel();
-  if (filtre === "TOUS") return data;
-  return data.filter((row) => row.bureau === filtre);
+  data.forEach((row) => {
+    const v = Number(row.rang) || 0;
+    if (!result[row.bureau]) {
+      result[row.bureau] = { 1: 0, 2: 0, 3: 0, total: 0 };
+    }
+    result[row.bureau][row.equipe] += v;
+    result[row.bureau].total += v;
+  });
+
+  return result;
 }
 
 function getTop100TotalForBureau(bureau) {
-  return toutesLesDonnees
-    .filter((row) => row.phase === "top100" && row.bureau === bureau)
+  return passages
+    .filter((row) => row.bureau === bureau)
     .reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
 }
 
 function updateTop100Info() {
-  const bureau = document.getElementById("bureau").value;
+  const bureau = document.getElementById("course-bureau").value;
   const total = getTop100TotalForBureau(bureau);
   const reste = 100 - total;
   const info = document.getElementById("top100-info");
@@ -144,10 +178,9 @@ function updateTop100Info() {
   }
 }
 
-async function envoyer() {
-  const bureau = document.getElementById("bureau").value;
-  const nombre = parseInt(document.getElementById("rang").value, 10);
-  const phase = "top100";
+async function enregistrerPassage() {
+  const bureau = document.getElementById("course-bureau").value;
+  const nombre = parseInt(document.getElementById("course-nombre").value, 10);
 
   if (!bureau) {
     showToast("Choisis un bureau.", true);
@@ -184,48 +217,71 @@ async function envoyer() {
       bureau,
       equipe,
       rang: nombre,
-      phase
+      phase: "top100"
     }
   ]);
 
   if (error) {
     console.error(error);
-    showToast("Erreur lors de l’enregistrement.", true);
+    showToast("Erreur lors de l’enregistrement course.", true);
     return;
   }
 
-  document.getElementById("rang").value = "";
-  showToast("Enregistré");
+  document.getElementById("course-nombre").value = "";
+  showToast("Saisie course enregistrée");
 }
 
-function aggregateByTeam(data) {
-  const scores = { 1: 0, 2: 0, 3: 0 };
-  data.forEach((row) => {
-    scores[row.equipe] = (scores[row.equipe] || 0) + (Number(row.rang) || 0);
-  });
-  return scores;
+function findParticipationRecord(bureau, heurePoint) {
+  return participations.find((p) => p.bureau === bureau && p.heure_point === heurePoint);
 }
 
-function aggregateByBureau(data) {
-  const bureaux = {};
+async function enregistrerParticipation() {
+  const bureau = document.getElementById("participation-bureau").value;
+  const heurePoint = document.getElementById("participation-heure").value;
+  const pctRaw = document.getElementById("participation-pct").value;
+  const pourcentage = parseFloat(pctRaw);
 
-  data.forEach((row) => {
-    if (!bureaux[row.bureau]) {
-      bureaux[row.bureau] = { 1: 0, 2: 0, 3: 0, total: 0 };
-    }
+  if (!bureau) {
+    showToast("Choisis un bureau pour la participation.", true);
+    return;
+  }
 
-    const valeur = Number(row.rang) || 0;
-    bureaux[row.bureau][row.equipe] += valeur;
-    bureaux[row.bureau].total += valeur;
-  });
+  if (!heurePoint) {
+    showToast("Choisis un point horaire.", true);
+    return;
+  }
 
-  return bureaux;
+  if (Number.isNaN(pourcentage) || pourcentage < 0 || pourcentage > 100) {
+    showToast("Entre un pourcentage valide entre 0 et 100.", true);
+    return;
+  }
+
+  const { error } = await window.supabaseClient
+    .from("participation")
+    .upsert(
+      [
+        {
+          bureau,
+          heure_point: heurePoint,
+          pourcentage: pourcentage
+        }
+      ],
+      { onConflict: "bureau,heure_point" }
+    );
+
+  if (error) {
+    console.error(error);
+    showToast("Erreur lors de l’enregistrement participation.", true);
+    return;
+  }
+
+  showToast("Participation enregistrée");
 }
 
-function animateNumber(el, newValue, suffix = "") {
+function animateNumber(el, newValue) {
   const oldValue = parseInt((el.dataset.value || "0"), 10);
   if (oldValue === newValue) {
-    el.textContent = `${newValue}${suffix}`;
+    el.textContent = String(newValue);
     return;
   }
 
@@ -235,7 +291,7 @@ function animateNumber(el, newValue, suffix = "") {
   function step(now) {
     const progress = Math.min((now - start) / duration, 1);
     const current = Math.round(oldValue + (newValue - oldValue) * progress);
-    el.textContent = `${current}${suffix}`;
+    el.textContent = String(current);
     if (progress < 1) {
       requestAnimationFrame(step);
     } else {
@@ -246,40 +302,22 @@ function animateNumber(el, newValue, suffix = "") {
   requestAnimationFrame(step);
 }
 
-function formatPercent(value) {
-  return `${value.toFixed(1).replace(".", ",")}%`;
-}
-
 function renderHeroStats() {
-  const top100Data = toutesLesDonnees.filter((row) => row.phase === "top100");
-  const top100Total = top100Data.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
+  const totalCourse = passages.reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
+  const bureauxAgg = aggregateCourseByBureau(passages);
+  const nbComplets = Object.values(bureauxAgg).filter((b) => b.total >= 100).length;
 
-  const top100Bureaux = aggregateByBureau(top100Data);
-  const nbComplets = Object.values(top100Bureaux).filter((b) => b.total >= 100).length;
-  const bureauxText = `${nbComplets} / 15`;
+  const point19 = computeGlobalParticipationPoint("19h");
 
-  const participationGlobale = (top100Total / TOTAL_INSCRITS_TASSIN) * 100;
-  const participationText = formatPercent(participationGlobale);
-
-  const bureauxEl = document.getElementById("stat-bureaux");
-  const top100El = document.getElementById("stat-top100");
-  const participationEl = document.getElementById("stat-participation");
-
-  if (lastStatsSnapshot.bureauxComplets !== bureauxText) {
-    bureauxEl.textContent = bureauxText;
-    lastStatsSnapshot.bureauxComplets = bureauxText;
-  }
-
-  animateNumber(top100El, top100Total);
-
-  if (lastStatsSnapshot.participation !== participationText) {
-    participationEl.textContent = participationText;
-    lastStatsSnapshot.participation = participationText;
-  }
+  document.getElementById("stat-bureaux").textContent = `${nbComplets} / 15`;
+  animateNumber(document.getElementById("stat-top100"), totalCourse);
+  document.getElementById("stat-participation-19h").textContent = formatPercent(point19.avgPct);
 }
 
-function renderScoreCards(scores) {
+function renderCourseScores() {
+  const scores = aggregateCourseByTeam(passages);
   const target = document.getElementById("score-cards");
+
   target.innerHTML = `
     <div class="score-card">
       <div class="score-name-wrap">
@@ -305,9 +343,8 @@ function renderScoreCards(scores) {
   `;
 }
 
-function renderRanking(scores) {
-  const target = document.getElementById("classement-principal");
-
+function renderCourseRanking() {
+  const scores = aggregateCourseByTeam(passages);
   const ranking = [
     { equipe: 1, score: scores[1] || 0 },
     { equipe: 2, score: scores[2] || 0 },
@@ -319,7 +356,7 @@ function renderRanking(scores) {
   const third = ranking[2];
   const ecart = Math.max(0, first.score - second.score);
 
-  target.innerHTML = `
+  document.getElementById("classement-principal").innerHTML = `
     <div class="rank-card">
       <div class="rank-top">
         <div class="rank-name-wrap">
@@ -351,9 +388,10 @@ function renderRanking(scores) {
   `;
 }
 
-function renderBars(scores) {
-  const target = document.getElementById("main-bars");
+function renderCourseBars() {
+  const scores = aggregateCourseByTeam(passages);
   const max = Math.max(scores[1], scores[2], scores[3], 1);
+  const target = document.getElementById("course-bars");
 
   function row(teamId, value) {
     const width = Math.round((value / max) * 100);
@@ -380,24 +418,12 @@ function renderBars(scores) {
   `;
 }
 
-function renderTable(data) {
-  const target = document.getElementById("table-main");
-  const bureaux = aggregateByBureau(data);
-  const noms = Object.keys(bureaux).sort((a, b) => {
-    const na = parseInt(a.replace(/\D/g, ""), 10);
-    const nb = parseInt(b.replace(/\D/g, ""), 10);
-    return na - nb;
-  });
-
-  if (!noms.length) {
-    target.innerHTML = "<p class='muted'>Aucune donnée.</p>";
-    return;
-  }
+function renderCourseTable() {
+  const agg = aggregateCourseByBureau(passages);
 
   let rows = "";
-
-  noms.forEach((bureau) => {
-    const item = bureaux[bureau];
+  BUREAUX.forEach((bureau) => {
+    const item = agg[bureau];
     const totalText = `${item.total} / 100`;
     const statusHtml = item.total >= 100
       ? `<span class="status-pill status-ok">Complet</span>`
@@ -415,7 +441,7 @@ function renderTable(data) {
     `;
   });
 
-  target.innerHTML = `
+  document.getElementById("course-table").innerHTML = `
     <div class="table-wrap">
       <table>
         <thead>
@@ -434,86 +460,38 @@ function renderTable(data) {
   `;
 }
 
-function renderHistorique() {
-  const target = document.getElementById("historique");
-  const recent = [...toutesLesDonnees].sort((a, b) => b.id - a.id).slice(0, 10);
+function computeGlobalParticipationPoint(pointKey) {
+  const pointRows = participations.filter((p) => p.heure_point === pointKey);
+  const avgPct = pointRows.length
+    ? pointRows.reduce((sum, row) => sum + (Number(row.pourcentage) || 0), 0) / pointRows.length
+    : 0;
 
-  if (!recent.length) {
-    target.innerHTML = "<p class='muted'>Aucune saisie pour le moment.</p>";
-    return;
-  }
+  const projected = Math.round((avgPct / 100) * TOTAL_INSCRITS_TASSIN);
 
-  target.innerHTML = `
-    <div class="history-list">
-      ${recent.map((row) => `
-        <div class="history-item">
-          <div class="history-line">${row.bureau} — ${TEAMS[row.equipe].name} — ${row.rang}</div>
-          <div class="history-meta">100 premiers · ID ${row.id}</div>
-        </div>
-      `).join("")}
-    </div>
-  `;
+  return {
+    pointKey,
+    avgPct,
+    projected,
+    count: pointRows.length
+  };
 }
 
-function extractHour(dateString) {
-  const d = new Date(dateString);
-  return d.getHours();
-}
+function renderParticipationGlobal() {
+  const target = document.getElementById("participation-global-chart");
+  const summary = document.getElementById("participation-global-summary");
 
-function sumUntilHour(data, hourLimit) {
-  return data
-    .filter((row) => extractHour(row.created_at) < hourLimit)
-    .reduce((sum, row) => sum + (Number(row.rang) || 0), 0);
-}
+  const points = PARTICIPATION_POINTS.map((p) => ({
+    ...p,
+    ...computeGlobalParticipationPoint(p.key)
+  }));
 
-function computeGlobalParticipationPoints(data) {
-  return PARTICIPATION_SLOTS.map((slot) => {
-    const cumul = sumUntilHour(data, slot.hour);
-    const rate = (cumul / TOTAL_INSCRITS_TASSIN) * 100;
-    return {
-      key: slot.key,
-      label: slot.label,
-      css: slot.css,
-      cumul,
-      rate
-    };
-  });
-}
-
-function computeBureauParticipationPoints(data) {
-  const bureaux = {};
-  for (let i = 1; i <= NB_BUREAUX; i++) {
-    bureaux[`Bureau ${i}`] = [];
-  }
-
-  Object.keys(bureaux).forEach((bureau) => {
-    const bureauData = data.filter((row) => row.bureau === bureau);
-    bureaux[bureau] = PARTICIPATION_SLOTS.map((slot) => {
-      const cumul = sumUntilHour(bureauData, slot.hour);
-      const rate = (cumul / INSCRITS_PAR_BUREAU) * 100;
-      return {
-        key: slot.key,
-        label: slot.label,
-        css: slot.css,
-        cumul,
-        rate
-      };
-    });
-  });
-
-  return bureaux;
-}
-
-function renderParticipationGlobal(data) {
-  const target = document.getElementById("participation-global");
-  const points = computeGlobalParticipationPoints(data);
-  const max = Math.max(...points.map((p) => p.rate), 1);
+  const maxPct = Math.max(...points.map((p) => p.avgPct), 1);
 
   target.innerHTML = points.map((point) => {
-    const height = Math.max(6, Math.round((point.rate / max) * 180));
+    const height = Math.max(6, Math.round((point.avgPct / maxPct) * 180));
     return `
       <div class="vertical-bar-col">
-        <div class="vertical-value">${formatPercent(point.rate)}</div>
+        <div class="vertical-value">${formatPercent(point.avgPct)}</div>
         <div class="vertical-bar-wrap">
           <div class="vertical-bar ${point.css}" style="height:${height}px;"></div>
         </div>
@@ -521,25 +499,41 @@ function renderParticipationGlobal(data) {
       </div>
     `;
   }).join("");
+
+  summary.innerHTML = points.map((point) => `
+    <div class="projection-card">
+      <div class="projection-title">${point.label}</div>
+      <div class="projection-main">${formatPercent(point.avgPct)}</div>
+      <div class="projection-sub">≈ ${point.projected.toLocaleString("fr-FR")} personnes sur base Tassin</div>
+    </div>
+  `).join("");
 }
 
-function renderParticipationBureaux(data) {
-  const target = document.getElementById("participation-bureaux");
-  const bureaux = computeBureauParticipationPoints(data);
+function renderParticipationBureaux() {
+  const target = document.getElementById("participation-bureaux-chart");
 
-  target.innerHTML = Object.keys(bureaux).map((bureau) => {
-    const points = bureaux[bureau];
-    const max = Math.max(...points.map((p) => p.rate), 1);
+  target.innerHTML = BUREAUX.map((bureau) => {
+    const bureauRows = participations.filter((p) => p.bureau === bureau);
+
+    const bureauPoints = PARTICIPATION_POINTS.map((point) => {
+      const found = bureauRows.find((row) => row.heure_point === point.key);
+      return {
+        ...point,
+        pct: found ? Number(found.pourcentage) || 0 : 0
+      };
+    });
+
+    const maxPct = Math.max(...bureauPoints.map((p) => p.pct), 1);
 
     return `
       <div class="bureau-row">
         <div class="bureau-name">${bureau}</div>
         <div class="bureau-bars">
-          ${points.map((point) => {
-            const height = Math.max(5, Math.round((point.rate / max) * 82));
+          ${bureauPoints.map((point) => {
+            const height = Math.max(5, Math.round((point.pct / maxPct) * 84));
             return `
               <div class="bureau-bar-col">
-                <div class="bureau-bar-value">${point.rate.toFixed(1).replace(".", ",")}%</div>
+                <div class="bureau-bar-value">${formatPercent(point.pct)}</div>
                 <div class="bureau-bar-wrap">
                   <div class="bureau-bar ${point.css}" style="height:${height}px;"></div>
                 </div>
@@ -553,35 +547,76 @@ function renderParticipationBureaux(data) {
   }).join("");
 }
 
+function renderHistoriques() {
+  const courseTarget = document.getElementById("historique-course");
+  const participationTarget = document.getElementById("historique-participation");
+
+  const recentCourse = [...passages].sort((a, b) => b.id - a.id).slice(0, 10);
+  const recentParticipation = [...participations].sort((a, b) => b.id - a.id).slice(0, 10);
+
+  courseTarget.innerHTML = recentCourse.length
+    ? `<div class="history-list">
+        ${recentCourse.map((row) => `
+          <div class="history-item">
+            <div class="history-line">${row.bureau} — ${TEAMS[row.equipe].name} — ${row.rang}</div>
+            <div class="history-meta">100 premiers · ID ${row.id}</div>
+          </div>
+        `).join("")}
+      </div>`
+    : "<p class='muted'>Aucune saisie course.</p>";
+
+  participationTarget.innerHTML = recentParticipation.length
+    ? `<div class="history-list">
+        ${recentParticipation.map((row) => `
+          <div class="history-item">
+            <div class="history-line">${row.bureau} — ${row.heure_point} — ${formatPercent(row.pourcentage)}</div>
+            <div class="history-meta">Participation · ID ${row.id}</div>
+          </div>
+        `).join("")}
+      </div>`
+    : "<p class='muted'>Aucune saisie participation.</p>";
+}
+
 function renderAll() {
   renderHeroStats();
-
-  const dataFiltrees = appliquerFiltre(toutesLesDonnees);
-  const scores = aggregateByTeam(dataFiltrees);
-
-  renderScoreCards(scores);
-  renderRanking(scores);
-  renderBars(scores);
-  renderTable(dataFiltrees);
-  renderParticipationGlobal(toutesLesDonnees);
-  renderParticipationBureaux(toutesLesDonnees);
-  renderHistorique();
+  renderCourseScores();
+  renderCourseRanking();
+  renderCourseBars();
+  renderCourseTable();
+  renderParticipationGlobal();
+  renderParticipationBureaux();
+  renderHistoriques();
   updateTop100Info();
 }
 
-async function chargerDonnees(showManualToast = false, source = "manual") {
-  const { data, error } = await window.supabaseClient
-    .from("passages")
-    .select("*")
-    .order("created_at", { ascending: true });
+async function chargerToutesLesDonnees(showManualToast = false, source = "manual") {
+  const [passagesResp, participationResp] = await Promise.all([
+    window.supabaseClient
+      .from("passages")
+      .select("*")
+      .eq("phase", "top100")
+      .order("created_at", { ascending: true }),
+    window.supabaseClient
+      .from("participation")
+      .select("*")
+      .order("created_at", { ascending: true })
+  ]);
 
-  if (error) {
-    console.error(error);
-    showToast("Impossible de charger les résultats.", true);
+  if (passagesResp.error) {
+    console.error(passagesResp.error);
+    showToast("Impossible de charger la course.", true);
     return;
   }
 
-  toutesLesDonnees = (data || []).filter((row) => row.phase === "top100");
+  if (participationResp.error) {
+    console.error(participationResp.error);
+    showToast("Impossible de charger la participation.", true);
+    return;
+  }
+
+  passages = passagesResp.data || [];
+  participations = participationResp.data || [];
+
   renderAll();
   formatLastUpdate(source);
 
@@ -591,33 +626,45 @@ async function chargerDonnees(showManualToast = false, source = "manual") {
 }
 
 function setupRealtime() {
-  if (realtimeChannel) {
-    window.supabaseClient.removeChannel(realtimeChannel);
+  if (realtimePassagesChannel) {
+    window.supabaseClient.removeChannel(realtimePassagesChannel);
+  }
+  if (realtimeParticipationChannel) {
+    window.supabaseClient.removeChannel(realtimeParticipationChannel);
   }
 
-  realtimeChannel = window.supabaseClient
+  realtimePassagesChannel = window.supabaseClient
     .channel("passages-live")
     .on(
       "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "passages"
-      },
+      { event: "*", schema: "public", table: "passages" },
       async () => {
-        await chargerDonnees(false, "live");
+        await chargerToutesLesDonnees(false, "live");
       }
     )
     .subscribe((status) => {
-      console.log("Realtime status:", status);
+      console.log("Realtime passages:", status);
+    });
+
+  realtimeParticipationChannel = window.supabaseClient
+    .channel("participation-live")
+    .on(
+      "postgres_changes",
+      { event: "*", schema: "public", table: "participation" },
+      async () => {
+        await chargerToutesLesDonnees(false, "live");
+      }
+    )
+    .subscribe((status) => {
+      console.log("Realtime participation:", status);
       if (status === "SUBSCRIBED") {
         showToast("Temps réel activé");
       }
     });
 }
 
-async function annulerDerniereSaisie() {
-  const ok = confirm("Annuler la dernière saisie ?");
+async function annulerDerniereSaisieCourse() {
+  const ok = confirm("Annuler la dernière saisie course ?");
   if (!ok) return;
 
   const { data, error } = await window.supabaseClient
@@ -629,12 +676,12 @@ async function annulerDerniereSaisie() {
 
   if (error) {
     console.error(error);
-    showToast("Impossible de récupérer la dernière saisie.", true);
+    showToast("Impossible de récupérer la dernière saisie course.", true);
     return;
   }
 
   if (!data || !data.length) {
-    showToast("Aucune saisie à annuler.", true);
+    showToast("Aucune saisie course à annuler.", true);
     return;
   }
 
@@ -651,7 +698,7 @@ async function annulerDerniereSaisie() {
     return;
   }
 
-  showToast(`Dernière saisie annulée (ID ${lastId})`);
+  showToast(`Dernière saisie course annulée (ID ${lastId})`);
 }
 
 function toCsvLine(values) {
@@ -659,17 +706,18 @@ function toCsvLine(values) {
 }
 
 function exporterCSV() {
-  if (!toutesLesDonnees.length) {
-    showToast("Aucune donnée à exporter.", true);
-    return;
-  }
-
-  const rows = [
-    ["id", "bureau", "equipe", "rang", "phase", "created_at"],
-    ...toutesLesDonnees.map((row) => [row.id, row.bureau, row.equipe, row.rang, row.phase, row.created_at])
+  const courseRows = [
+    ["TABLE", "id", "bureau", "equipe", "rang", "phase", "created_at"],
+    ...passages.map((row) => ["passages", row.id, row.bureau, row.equipe, row.rang, row.phase, row.created_at])
   ];
 
-  const csv = rows.map(toCsvLine).join("\n");
+  const participationRows = [
+    [],
+    ["TABLE", "id", "bureau", "heure_point", "pourcentage", "created_at"],
+    ...participations.map((row) => ["participation", row.id, row.bureau, row.heure_point, row.pourcentage, row.created_at])
+  ];
+
+  const csv = [...courseRows, ...participationRows].map(toCsvLine).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
 
@@ -683,24 +731,25 @@ function exporterCSV() {
 }
 
 async function copierResume() {
-  const dataFiltrees = appliquerFiltre(toutesLesDonnees);
-  const scores = aggregateByTeam(dataFiltrees);
-  const participationPoints = computeGlobalParticipationPoints(toutesLesDonnees);
-  const filtre = filtreBureauActuel();
+  const scores = aggregateCourseByTeam(passages);
+  const p10 = computeGlobalParticipationPoint("10h");
+  const p12 = computeGlobalParticipationPoint("12h");
+  const p15 = computeGlobalParticipationPoint("15h");
+  const p19 = computeGlobalParticipationPoint("19h");
 
   const texte = [
-    `Résumé - ${filtre === "TOUS" ? "Tous les bureaux" : filtre}`,
-    ``,
-    `100 premiers`,
+    "Résumé comptabilisation",
+    "",
+    "Course - 100 premiers",
     `${TEAMS[1].name} : ${scores[1]}`,
     `${TEAMS[2].name} : ${scores[2]}`,
     `${TEAMS[3].name} : ${scores[3]}`,
-    ``,
-    `Participation globale`,
-    `10h : ${formatPercent(participationPoints[0].rate)}`,
-    `12h : ${formatPercent(participationPoints[1].rate)}`,
-    `15h : ${formatPercent(participationPoints[2].rate)}`,
-    `19h : ${formatPercent(participationPoints[3].rate)}`
+    "",
+    "Participation globale",
+    `10h : ${formatPercent(p10.avgPct)} (≈ ${p10.projected.toLocaleString("fr-FR")})`,
+    `12h : ${formatPercent(p12.avgPct)} (≈ ${p12.projected.toLocaleString("fr-FR")})`,
+    `15h : ${formatPercent(p15.avgPct)} (≈ ${p15.projected.toLocaleString("fr-FR")})`,
+    `19h : ${formatPercent(p19.avgPct)} (≈ ${p19.projected.toLocaleString("fr-FR")})`
   ].join("\n");
 
   try {
@@ -713,11 +762,12 @@ async function copierResume() {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  fillBureauSelect("course-bureau");
+  fillBureauSelect("participation-bureau");
   renderTeamButtons();
 
-  document.getElementById("bureau").addEventListener("change", updateTop100Info);
-  document.getElementById("filtre-bureau").addEventListener("change", renderAll);
+  document.getElementById("course-bureau").addEventListener("change", updateTop100Info);
 
-  await chargerDonnees(false, "manual");
+  await chargerToutesLesDonnees(false, "manual");
   setupRealtime();
 });
